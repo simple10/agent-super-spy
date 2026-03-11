@@ -1,0 +1,6 @@
+.DS_Store
+.env
+credentials.json
+node_modules/
+bun.lock
+api-debug/
