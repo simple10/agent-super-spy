@@ -5,5 +5,5 @@ bun.lock
 opik/
 keys.jsonc
 data/claude/credentials.json
-data/sdk-proxy/*
-!data/sdk-proxy/.gitkeep
+data/claude/sdk-proxy/*
+!data/claude/sdk-proxy/.gitkeep

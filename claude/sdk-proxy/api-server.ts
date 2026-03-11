@@ -1,4 +1,7 @@
 import { readFileSync } from 'fs'
+import { applyCacheControlMax, CACHE_5M, type CacheHints } from './cache-control'
+import { transformInput } from './cache-plugin'
+import { loadedInputPluginSpecs } from './plugins/transform/input'
 
 const API_PORT = parseInt(process.env.API_PORT || '4100')
 const ANTHROPIC_BASE = process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com'
@@ -99,87 +102,6 @@ function fixToolResultOrder(messages: any[]): any[] {
   })
 }
 
-const CACHE_1H = { type: 'ephemeral', ttl: '1h' } as const
-const CACHE_5M = { type: 'ephemeral' } as const
-
-function hasCacheControl(block: any, expected: typeof CACHE_1H | typeof CACHE_5M): boolean {
-  const cc = block?.cache_control
-  if (!cc || cc.type !== 'ephemeral') return false
-  if ('ttl' in expected) return cc.ttl === expected.ttl
-  return !cc.ttl // 5m = no ttl field
-}
-
-function applyCacheControlMax(body: Record<string, unknown>): Record<string, unknown> {
-  const result = { ...body }
-  const changes: string[] = []
-
-  // 1. Add cache_control (1hr) on system[-1]
-  const sys = result.system as any[]
-  if (Array.isArray(sys) && sys.length > 0) {
-    if (!hasCacheControl(sys[sys.length - 1], CACHE_1H)) {
-      result.system = [...sys]
-      ;(result.system as any[])[sys.length - 1] = {
-        ...sys[sys.length - 1],
-        cache_control: CACHE_1H,
-      }
-      changes.push(`system[${sys.length - 1}] (1h)`)
-    }
-  }
-
-  // 2. Add cache_control (1hr) on tools[-1]
-  const tools = result.tools as any[]
-  if (Array.isArray(tools) && tools.length > 0) {
-    if (!hasCacheControl(tools[tools.length - 1], CACHE_1H)) {
-      result.tools = [...tools]
-      ;(result.tools as any[])[tools.length - 1] = {
-        ...tools[tools.length - 1],
-        cache_control: CACHE_1H,
-      }
-      changes.push(`tools[${tools.length - 1}] (1h)`)
-    }
-  }
-
-  // 3. Add cache_control (5m) on messages[-2] and messages[-3] for retry resilience
-  const msgs = result.messages as any[]
-  if (Array.isArray(msgs) && msgs.length > 0) {
-    result.messages = msgs.map((m: any) => ({ ...m }))
-    const addCacheBreakpoint = (idx: number) => {
-      const msg = (result.messages as any[])[idx]
-      if (Array.isArray(msg.content) && msg.content.length > 0) {
-        const lastBlock = msg.content[msg.content.length - 1]
-        if (!hasCacheControl(lastBlock, CACHE_5M)) {
-          const content = [...msg.content]
-          content[content.length - 1] = { ...content[content.length - 1], cache_control: CACHE_5M }
-          ;(result.messages as any[])[idx] = { ...msg, content }
-          changes.push(`messages[${idx}] (5m)`)
-        }
-      } else if (typeof msg.content === 'string') {
-        ;(result.messages as any[])[idx] = {
-          ...msg,
-          content: [{ type: 'text', text: msg.content, cache_control: CACHE_5M }],
-        }
-        changes.push(`messages[${idx}] (5m)`)
-      }
-    }
-
-    if (msgs.length >= 2) {
-      addCacheBreakpoint(msgs.length - 2)
-      if (msgs.length >= 3) {
-        addCacheBreakpoint(msgs.length - 3)
-      }
-    } else {
-      // Only 1 message — cache it
-      addCacheBreakpoint(0)
-    }
-  }
-
-  if (changes.length > 0) {
-    console.log(`[api] Added cache_control breakpoints: ${changes.join(', ')}`)
-  }
-
-  return result
-}
-
 function mergeMessagesBody(callerBody: Record<string, unknown>): Record<string, unknown> {
   // Start with the caller's body as the base
   const merged: Record<string, unknown> = { ...callerBody }
@@ -233,8 +155,24 @@ const server = Bun.serve({
     if (effectivePath === '/v1/messages' && req.method === 'POST') {
       const callerBody = (await req.json()) as Record<string, unknown>
       let merged = mergeMessagesBody(callerBody)
+      let cacheHints: CacheHints | undefined
+      const cacheType = cacheControlMax ? 'max' : cacheControlAuto ? 'auto' : null
+
+      if (cacheType) {
+        const transformed = await transformInput(merged, { cacheType })
+        merged = transformed.input
+        cacheHints = transformed.cacheHints
+        if (cacheHints) {
+          console.log(`[api] Applied input transform cache hints: ${JSON.stringify(cacheHints)}`)
+        }
+      }
+
       if (cacheControlMax) {
-        merged = applyCacheControlMax(merged)
+        const applied = applyCacheControlMax(merged, cacheHints)
+        merged = applied.body
+        if (applied.changes.length > 0) {
+          console.log(`[api] Added cache_control breakpoints: ${applied.changes.join(', ')}`)
+        }
       } else if (cacheControlAuto) {
         if (!merged.cache_control) {
           merged.cache_control = CACHE_5M
@@ -311,3 +249,8 @@ console.log(
 console.log(`[api-server] Forwarding to: ${ANTHROPIC_BASE}`)
 console.log(`[api-server] Template auth header: ${authHeaderName}`)
 console.log(`[api-server] Template query params: ${JSON.stringify(templateQueryParams)}`)
+console.log(
+  `[api-server] Input transform plugins: ${
+    loadedInputPluginSpecs.length > 0 ? loadedInputPluginSpecs.join(', ') : 'none'
+  }`
+)

@@ -45,7 +45,7 @@ fi
 
 # --- Install dependencies ---
 echo "==> Installing dependencies..."
-cd /capture
+cd /app
 bun install
 
 # --- Step 1: Capture SDK request template ---

@@ -113,13 +113,16 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - API_SERVER_KEY=${CLAUDE_PROXY_API_KEY:-}
       - API_PORT=4100
+      # Input transformers for modifying prompts - useful for fixing cache control issues
+      - PLUGINS_TRANSFORM_INPUT=${CLAUDE_PROXY_PLUGINS_TRANSFORM_INPUT:-}
       # Route claude proxy through the llm-proxy to capture opik traces
       - CLAUDE_PROXY_ANTHROPIC_BASE_URL=${CLAUDE_PROXY_ANTHROPIC_BASE_URL:-http://localhost:4000/anthropic}
       - HTTP_PROXY=http://localhost:8080
       - HTTPS_PROXY=http://localhost:8080
       - NO_PROXY=localhost,127.0.0.1
     volumes:
-      - ./data/sdk-proxy:/api-debug
+      - ./data/claude/sdk-proxy:/api-debug
+      - ./data/claude/sdk-proxy:/data
       - mitmproxy-certs:/certs:ro
       - ./data/claude/credentials.json:/credentials/.credentials.json:ro
 
