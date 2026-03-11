@@ -1,0 +1,23 @@
+# Opik network override — attaches Opik services to the shared LLM proxy network.
+# Used by start.sh:
+#   docker compose -f opik/deployment/docker-compose/docker-compose.yaml \
+#                  -f opik-network.yml --profile opik up -d
+
+networks:
+  llm-proxy-net:
+    name: ${NETWORK_NAME:-llm-proxy-net}
+    external: true
+
+services:
+  backend:
+    networks:
+      default:
+      llm-proxy-net:
+        aliases:
+          - opik-backend
+  frontend:
+    networks:
+      default:
+      llm-proxy-net:
+        aliases:
+          - opik-frontend
