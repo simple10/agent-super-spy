@@ -42,7 +42,7 @@ Your agents / SDKs / tools
         |  http://localhost:4000/<any-hostname>/path
         |
         v
-+- llm-proxy-net ------------------------------------------------------+
++- llm-proxy-net -------------------------------------------------------+
 |                                                                       |
 |  +-------------+    +-----------+    +------------------+             |
 |  |  llm-proxy  |--->| mitmproxy |--->| upstream APIs    |             |
@@ -52,10 +52,10 @@ Your agents / SDKs / tools
 |  +------+------+                                                      |
 |         | traces                                                      |
 |         v                                                             |
-|  +---------------------------------------------+                     |
-|  |  Opik                                        |                     |
-|  |  :5173 UI  - trace/span visualization        |                     |
-|  +---------------------------------------------+                     |
+|  +---------------------------------------------+                      |
+|  |  Opik                                       |                      |
+|  |  :5173 UI  - trace/span visualization       |                      |
+|  +---------------------------------------------+                      |
 +-----------------------------------------------------------------------+
 ```
 
@@ -141,3 +141,10 @@ From the shared network, these hostnames are available:
 ./stop.sh          # Stop all services, keep network
 ./stop.sh --clean  # Stop all services and remove network
 ```
+
+## Additional Resources
+
+- [Claude Code Opik Plugin](https://github.com/comet-ml/opik-claude-code-plugin) - log claude code traces to Opik
+  - Install the Claude plugin then enable per session: `/opik:trace-claude-code start` or add `--global`
+- [OpenClaw Opik Plugin](https://github.com/comet-ml/opik-openclaw) - log OpenClaw traces to Opik
+- [Opik Github](https://github.com/comet-ml) - explore additional Opik plugins, mcp, n8n, etc.
