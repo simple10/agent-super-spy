@@ -1,7 +1,7 @@
 import { writeFileSync } from 'fs'
 
 const INTERCEPT_PORT = 9999
-const OUTPUT_PATH = '/api-debug/api.json'
+const OUTPUT_PATH = '/data/api.json'
 
 let captured = false
 
@@ -59,7 +59,12 @@ const server = Bun.serve({
             content: [],
             stop_reason: null,
             stop_sequence: null,
-            usage: { input_tokens: inputTokens, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 1 },
+            usage: {
+              input_tokens: inputTokens,
+              cache_creation_input_tokens: 0,
+              cache_read_input_tokens: 0,
+              output_tokens: 1,
+            },
           },
         })}\n`,
         `event: content_block_start\ndata: ${JSON.stringify({

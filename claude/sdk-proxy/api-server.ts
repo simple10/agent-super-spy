@@ -7,7 +7,7 @@ const API_PORT = parseInt(process.env.API_PORT || '4100')
 const ANTHROPIC_BASE = process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com'
 
 // Load the captured API template
-const template = JSON.parse(readFileSync('/api-debug/api.json', 'utf-8'))
+const template = JSON.parse(readFileSync('/data/api.json', 'utf-8'))
 
 // Get real auth token from credentials
 function getAuthToken(): string {

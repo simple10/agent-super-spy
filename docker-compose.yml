@@ -125,7 +125,6 @@ services:
       - HTTPS_PROXY=http://localhost:8080
       - NO_PROXY=localhost,127.0.0.1
     volumes:
-      - ./data/claude/sdk-proxy:/api-debug
       - ./data/claude/sdk-proxy:/data
       - mitmproxy-certs:/certs:ro
       - ./data/claude/credentials.json:/credentials/.credentials.json:ro
