@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs'
 
 const API_PORT = parseInt(process.env.API_PORT || '4100')
-const ANTHROPIC_BASE = process.env.ANTHROPIC_BASE_URL || 'http://localhost:4000/anthropic'
+const ANTHROPIC_BASE = process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com'
 
 // Load the captured API template
 const template = JSON.parse(readFileSync('/api-debug/api.json', 'utf-8'))
@@ -51,9 +51,13 @@ function buildSimpleHeaders(): Record<string, string> {
     [authHeaderName]: authHeaderValue,
     'anthropic-version': (template.headers['anthropic-version'] as string) || '2023-06-01',
     'content-type': 'application/json',
-    'accept': 'application/json',
-    ...(template.headers['anthropic-beta'] ? { 'anthropic-beta': template.headers['anthropic-beta'] as string } : {}),
-    ...(template.headers['user-agent'] ? { 'user-agent': template.headers['user-agent'] as string } : {}),
+    accept: 'application/json',
+    ...(template.headers['anthropic-beta']
+      ? { 'anthropic-beta': template.headers['anthropic-beta'] as string }
+      : {}),
+    ...(template.headers['user-agent']
+      ? { 'user-agent': template.headers['user-agent'] as string }
+      : {}),
   }
 }
 
@@ -61,13 +65,16 @@ function validateApiKey(req: Request): Response | null {
   if (!serverKey) return null // no validation if no key configured
   const callerKey = req.headers.get('x-api-key') || ''
   if (callerKey !== serverKey) {
-    return new Response(JSON.stringify({
-      type: 'error',
-      error: { type: 'authentication_error', message: 'Invalid API key' },
-    }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return new Response(
+      JSON.stringify({
+        type: 'error',
+        error: { type: 'authentication_error', message: 'Invalid API key' },
+      }),
+      {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    )
   }
   return null
 }
@@ -84,7 +91,9 @@ function fixToolResultOrder(messages: any[]): any[] {
     const others = msg.content.filter((b: any) => b.type !== 'tool_result')
     const firstType = msg.content[0]?.type
     if (firstType !== 'tool_result') {
-      console.log(`[api] Fixed tool_result order in messages[${i}] (moved ${toolResults.length} tool_result(s) before ${others.length} other block(s))`)
+      console.log(
+        `[api] Fixed tool_result order in messages[${i}] (moved ${toolResults.length} tool_result(s) before ${others.length} other block(s))`
+      )
     }
     return { ...msg, content: [...toolResults, ...others] }
   })
@@ -109,7 +118,10 @@ function applyCacheControlMax(body: Record<string, unknown>): Record<string, unk
   if (Array.isArray(sys) && sys.length > 0) {
     if (!hasCacheControl(sys[sys.length - 1], CACHE_1H)) {
       result.system = [...sys]
-      ;(result.system as any[])[sys.length - 1] = { ...sys[sys.length - 1], cache_control: CACHE_1H }
+      ;(result.system as any[])[sys.length - 1] = {
+        ...sys[sys.length - 1],
+        cache_control: CACHE_1H,
+      }
       changes.push(`system[${sys.length - 1}] (1h)`)
     }
   }
@@ -119,7 +131,10 @@ function applyCacheControlMax(body: Record<string, unknown>): Record<string, unk
   if (Array.isArray(tools) && tools.length > 0) {
     if (!hasCacheControl(tools[tools.length - 1], CACHE_1H)) {
       result.tools = [...tools]
-      ;(result.tools as any[])[tools.length - 1] = { ...tools[tools.length - 1], cache_control: CACHE_1H }
+      ;(result.tools as any[])[tools.length - 1] = {
+        ...tools[tools.length - 1],
+        cache_control: CACHE_1H,
+      }
       changes.push(`tools[${tools.length - 1}] (1h)`)
     }
   }
@@ -199,10 +214,16 @@ const server = Bun.serve({
     // Detect cache-control route prefixes
     const cacheControlMax = url.pathname.startsWith('/cache-control-max')
     const cacheControlAuto = !cacheControlMax && url.pathname.startsWith('/cache-control-auto')
-    const cachePrefix = cacheControlMax ? '/cache-control-max' : cacheControlAuto ? '/cache-control-auto' : ''
+    const cachePrefix = cacheControlMax
+      ? '/cache-control-max'
+      : cacheControlAuto
+      ? '/cache-control-auto'
+      : ''
     const effectivePath = cachePrefix ? url.pathname.slice(cachePrefix.length) : url.pathname
 
-    console.log(`[api] ${req.method} ${url.pathname}${cachePrefix ? ` (${cachePrefix.slice(1)})` : ''}`)
+    console.log(
+      `[api] ${req.method} ${url.pathname}${cachePrefix ? ` (${cachePrefix.slice(1)})` : ''}`
+    )
 
     // Validate caller's API key
     const authErr = validateApiKey(req)
@@ -210,7 +231,7 @@ const server = Bun.serve({
 
     // POST /v1/messages — merge with template and forward
     if (effectivePath === '/v1/messages' && req.method === 'POST') {
-      const callerBody = await req.json() as Record<string, unknown>
+      const callerBody = (await req.json()) as Record<string, unknown>
       let merged = mergeMessagesBody(callerBody)
       if (cacheControlMax) {
         merged = applyCacheControlMax(merged)
@@ -224,8 +245,13 @@ const server = Bun.serve({
       const headers = buildForwardingHeaders(Buffer.byteLength(bodyStr))
 
       // Merge template query params with any caller-provided ones (caller overrides)
-      const queryStr = new URLSearchParams({ ...templateQueryParams, ...Object.fromEntries(url.searchParams) }).toString()
-      const targetUrl = queryStr ? `${ANTHROPIC_BASE}/v1/messages?${queryStr}` : `${ANTHROPIC_BASE}/v1/messages`
+      const queryStr = new URLSearchParams({
+        ...templateQueryParams,
+        ...Object.fromEntries(url.searchParams),
+      }).toString()
+      const targetUrl = queryStr
+        ? `${ANTHROPIC_BASE}/v1/messages?${queryStr}`
+        : `${ANTHROPIC_BASE}/v1/messages`
 
       const resp = await fetch(targetUrl, {
         method: 'POST',
@@ -279,7 +305,9 @@ const server = Bun.serve({
 })
 
 console.log(`[api-server] Listening on http://localhost:${API_PORT}`)
-console.log(`[api-server] Auth validation: ${serverKey ? 'enabled' : 'disabled (no API_SERVER_KEY)'}`)
+console.log(
+  `[api-server] Auth validation: ${serverKey ? 'enabled' : 'disabled (no API_SERVER_KEY)'}`
+)
 console.log(`[api-server] Forwarding to: ${ANTHROPIC_BASE}`)
 console.log(`[api-server] Template auth header: ${authHeaderName}`)
 console.log(`[api-server] Template query params: ${JSON.stringify(templateQueryParams)}`)

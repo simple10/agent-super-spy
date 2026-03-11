@@ -1211,7 +1211,7 @@ services:
     environment:
       - CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - API_SERVER_KEY=${CLAUDE_SDK_PROXY_KEY:-}
+      - API_SERVER_KEY=${CLAUDE_PROXY_API_KEY:-}
       - API_PORT=4100
       - HTTP_PROXY=http://localhost:8080
       - HTTPS_PROXY=http://localhost:8080
