@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'bun:test'
-import { extractModelAndUsage, generateUuidV7 } from './opik'
+import {
+  buildLoggedInput,
+  buildLoggedOutput,
+  extractModelAndUsage,
+  generateUuidV7,
+  summarizeTraceInput,
+  summarizeTraceOutput,
+} from './opik'
 
 describe('generateUuidV7', () => {
   test('creates an RFC 9562 UUIDv7', () => {
@@ -27,6 +34,79 @@ describe('extractModelAndUsage', () => {
         prompt_tokens: 10,
         completion_tokens: 4,
         total_tokens: 14,
+      },
+    })
+  })
+})
+
+describe('summarizeTraceInput', () => {
+  test('prefers the last user message over system content', () => {
+    expect(
+      summarizeTraceInput({
+        system: 'You are a terse assistant.',
+        messages: [
+          { role: 'user', content: 'First question' },
+          { role: 'assistant', content: 'First answer' },
+          { role: 'user', content: [{ type: 'text', text: 'Reply with the single word ok.' }] },
+        ],
+      }),
+    ).toBe('Reply with the single word ok.')
+  })
+})
+
+describe('summarizeTraceOutput', () => {
+  test('extracts Anthropic text content', () => {
+    expect(
+      summarizeTraceOutput({
+        id: 'msg_123',
+        content: [{ type: 'text', text: 'ok' }],
+      }),
+    ).toBe('ok')
+  })
+
+  test('extracts text from parsed streamed responses', () => {
+    expect(
+      summarizeTraceOutput({
+        _stream: true,
+        model: 'claude-sonnet-4-6',
+        usage: { input_tokens: 3, output_tokens: 12 },
+        text: 'streamed answer',
+      }),
+    ).toBe('streamed answer')
+  })
+})
+
+describe('buildLoggedInput', () => {
+  test('wraps structured requests with an input summary for Opik previews', () => {
+    expect(
+      buildLoggedInput({
+        system: 'You are a terse assistant.',
+        messages: [{ role: 'user', content: 'Ping' }],
+      }),
+    ).toEqual({
+      input: 'Ping',
+      request: {
+        system: 'You are a terse assistant.',
+        messages: [{ role: 'user', content: 'Ping' }],
+      },
+    })
+  })
+})
+
+describe('buildLoggedOutput', () => {
+  test('wraps structured responses with an output summary for Opik previews', () => {
+    expect(
+      buildLoggedOutput({
+        _stream: true,
+        model: 'claude-sonnet-4-6',
+        text: 'Sunny and 58F.',
+      }),
+    ).toEqual({
+      output: 'Sunny and 58F.',
+      response: {
+        _stream: true,
+        model: 'claude-sonnet-4-6',
+        text: 'Sunny and 58F.',
       },
     })
   })

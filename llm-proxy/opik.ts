@@ -13,6 +13,182 @@ export interface TraceData {
   error?: string
 }
 
+function isRecord(value: unknown): value is Record<string, any> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function extractTextParts(content: any): string[] {
+  if (typeof content === 'string') {
+    const trimmed = content.trim()
+    return trimmed ? [content] : []
+  }
+
+  if (!Array.isArray(content)) return []
+
+  const parts: string[] = []
+  for (const item of content) {
+    if (typeof item === 'string') {
+      const trimmed = item.trim()
+      if (trimmed) parts.push(item)
+      continue
+    }
+
+    if (!isRecord(item)) continue
+
+    if (typeof item.text === 'string' && item.text.trim()) {
+      parts.push(item.text)
+      continue
+    }
+
+    if (typeof item.content === 'string' && item.content.trim()) {
+      parts.push(item.content)
+    }
+  }
+
+  return parts
+}
+
+function joinTextParts(parts: string[]): string | undefined {
+  const text = parts.map((part) => part.trim()).filter(Boolean).join('\n\n')
+  return text || undefined
+}
+
+function extractLastUserMessage(messages: unknown[]): string | undefined {
+  const userMessages: string[] = []
+
+  for (const message of messages) {
+    if (!isRecord(message)) continue
+
+    const role = message.role ?? message.type
+    if (role !== 'user' && role !== 'human') continue
+
+    const text = joinTextParts(extractTextParts(message.content))
+    if (text) userMessages.push(text)
+  }
+
+  return userMessages.at(-1)
+}
+
+function extractLastAssistantMessage(messages: unknown[]): string | undefined {
+  const assistantMessages: string[] = []
+
+  for (const message of messages) {
+    if (!isRecord(message)) continue
+
+    const role = message.role ?? message.type
+    if (role !== 'assistant' && role !== 'ai') continue
+
+    const text = joinTextParts(extractTextParts(message.content))
+    if (text) assistantMessages.push(text)
+  }
+
+  return assistantMessages.at(-1)
+}
+
+export function summarizeTraceInput(input: any): string | undefined {
+  if (typeof input === 'string') {
+    return input.trim() ? input : undefined
+  }
+
+  if (!isRecord(input)) return undefined
+
+  if (Array.isArray(input.messages)) {
+    const message = extractLastUserMessage(input.messages)
+    if (message) return message
+  }
+
+  if (Array.isArray(input.input)) {
+    const message = extractLastUserMessage(input.input)
+    if (message) return message
+
+    const text = joinTextParts(extractTextParts(input.input))
+    if (text) return text
+  }
+
+  for (const key of ['prompt', 'input', 'question', 'query', 'message', 'text']) {
+    if (typeof input[key] === 'string' && input[key].trim()) {
+      return input[key]
+    }
+  }
+
+  return undefined
+}
+
+export function summarizeTraceOutput(output: any): string | undefined {
+  if (typeof output === 'string') {
+    return output.trim() ? output : undefined
+  }
+
+  if (!isRecord(output)) return undefined
+
+  if (Array.isArray(output.choices)) {
+    const lastChoice = output.choices.at(-1)
+    if (isRecord(lastChoice)) {
+      const messageText = joinTextParts(extractTextParts(lastChoice.message?.content))
+      if (messageText) return messageText
+
+      const deltaText = joinTextParts(extractTextParts(lastChoice.delta?.content))
+      if (deltaText) return deltaText
+
+      if (typeof lastChoice.text === 'string' && lastChoice.text.trim()) {
+        return lastChoice.text
+      }
+    }
+  }
+
+  if (Array.isArray(output.content)) {
+    const text = joinTextParts(extractTextParts(output.content))
+    if (text) return text
+  }
+
+  if (Array.isArray(output.messages)) {
+    const message = extractLastAssistantMessage(output.messages)
+    if (message) return message
+  }
+
+  if (Array.isArray(output.output)) {
+    const message = extractLastAssistantMessage(output.output)
+    if (message) return message
+
+    const text = joinTextParts(extractTextParts(output.output))
+    if (text) return text
+  }
+
+  for (const key of ['output', 'response', 'output_text', 'text']) {
+    if (typeof output[key] === 'string' && output[key].trim()) {
+      return output[key]
+    }
+  }
+
+  return undefined
+}
+
+export function buildLoggedInput(input: any): any {
+  const summary = summarizeTraceInput(input)
+
+  if (!summary || !isRecord(input)) {
+    return input
+  }
+
+  return {
+    input: summary,
+    request: input,
+  }
+}
+
+export function buildLoggedOutput(output: any): any {
+  const summary = summarizeTraceOutput(output)
+
+  if (!summary || !isRecord(output)) {
+    return output
+  }
+
+  return {
+    output: summary,
+    response: output,
+  }
+}
+
 export function extractModelAndUsage(
   provider: string,
   requestBody: any,
@@ -74,6 +250,8 @@ export async function logTrace(data: TraceData): Promise<void> {
   const { model, usage } = extractModelAndUsage(data.provider, data.requestBody, data.responseBody)
   const startISO = data.startTime.toISOString()
   const endISO = data.endTime.toISOString()
+  const loggedInput = buildLoggedInput(data.requestBody)
+  const loggedOutput = buildLoggedOutput(data.responseBody)
 
   try {
     await postOpik('/v1/private/traces', {
@@ -82,8 +260,8 @@ export async function logTrace(data: TraceData): Promise<void> {
       name: `${data.method} ${data.path}`,
       start_time: startISO,
       end_time: endISO,
-      input: data.requestBody,
-      output: data.responseBody,
+      input: loggedInput,
+      output: loggedOutput,
       metadata: { provider: data.provider, model, status_code: data.statusCode },
       tags: [data.provider, model],
     })
@@ -96,8 +274,8 @@ export async function logTrace(data: TraceData): Promise<void> {
       type: 'llm',
       start_time: startISO,
       end_time: endISO,
-      input: data.requestBody,
-      output: data.responseBody,
+      input: loggedInput,
+      output: loggedOutput,
       model,
       provider: data.provider,
       usage,
