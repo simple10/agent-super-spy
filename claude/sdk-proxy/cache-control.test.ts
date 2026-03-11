@@ -76,4 +76,26 @@ describe('applyCacheControlMax', () => {
 
     expect(result.changes).toEqual(['system[0] (1h)', 'tools[0] (1h)', 'messages[1] (5m)', 'messages[0] (5m)'])
   })
+
+  test('skips cache breakpoint categories explicitly disabled by hints', () => {
+    const result = applyCacheControlMax(
+      {
+        system: [{ type: 'text', text: 'unstable system' }],
+        tools: [{ name: 'tool-a' }],
+        messages: [{ role: 'user', content: 'unstable message' }],
+      },
+      {
+        system: false,
+        messages: false,
+      },
+    )
+
+    expect(result.body).toMatchObject({
+      system: [{ type: 'text', text: 'unstable system' }],
+      tools: [{ name: 'tool-a', cache_control: { type: 'ephemeral', ttl: '1h' } }],
+      messages: [{ role: 'user', content: 'unstable message' }],
+    })
+
+    expect(result.changes).toEqual(['tools[0] (1h)'])
+  })
 })
