@@ -1,5 +1,6 @@
 import { resolveRoute } from './router'
 import { loadKeys, extractCallerAuth, resolveRealKey, type KeyConfig } from './keys'
+import { buildUpstreamHeaders, stripRespHeaders } from './headers'
 import { logTrace } from './opik'
 
 const PORT = parseInt(process.env.LLM_PROXY_PORT || '4000')
@@ -13,42 +14,6 @@ process.on('SIGHUP', () => {
   keyConfig = loadKeys(KEYS_PATH)
   console.log(`[proxy] Loaded ${Object.keys(keyConfig).length} local keys`)
 })
-
-// Hop-by-hop headers to strip when forwarding
-const SKIP_HEADERS = new Set([
-  'host',
-  'connection',
-  'keep-alive',
-  'transfer-encoding',
-  'te',
-  'trailer',
-  'upgrade',
-  'proxy-authorization',
-  'proxy-authenticate',
-])
-
-function buildUpstreamHeaders(
-  req: Request,
-  realKey: string | null,
-  callerAuth: ReturnType<typeof extractCallerAuth>,
-): Headers {
-  const headers = new Headers()
-  req.headers.forEach((value, key) => {
-    if (SKIP_HEADERS.has(key.toLowerCase())) return
-    headers.set(key, value)
-  })
-
-  // Swap API key if we resolved a real one
-  if (realKey && callerAuth) {
-    if (callerAuth.format === 'bearer') {
-      headers.set('authorization', `Bearer ${realKey}`)
-    } else {
-      headers.set(callerAuth.header, realKey)
-    }
-  }
-
-  return headers
-}
 
 function parseStreamForMetadata(streamText: string): any {
   // Parse SSE stream to extract metadata. Handles both Anthropic and OpenAI formats.
@@ -102,16 +67,6 @@ function parseStreamForMetadata(streamText: string): any {
   }
 
   return result
-}
-
-function stripRespHeaders(upstream: Response): Headers {
-  const headers = new Headers()
-  upstream.headers.forEach((value, key) => {
-    if (!SKIP_HEADERS.has(key.toLowerCase())) {
-      headers.set(key, value)
-    }
-  })
-  return headers
 }
 
 const server = Bun.serve({

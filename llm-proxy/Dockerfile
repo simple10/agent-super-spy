@@ -13,6 +13,6 @@ RUN chmod +x /entrypoint.sh
 COPY package.json tsconfig.json /app/
 RUN bun install
 
-COPY server.ts router.ts keys.ts opik.ts /app/
+COPY server.ts router.ts keys.ts headers.ts opik.ts /app/
 
 ENTRYPOINT ["/entrypoint.sh"]
