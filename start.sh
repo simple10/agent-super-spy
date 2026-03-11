@@ -100,6 +100,13 @@ echo ""
 echo "  LLM Proxy:    http://localhost:${LLM_PROXY_PORT:-4000}"
 echo "  mitmproxy UI: http://localhost:${MITMPROXY_UI_PORT:-8081}"
 echo "  Opik UI:      http://localhost:5173"
+ACTIVE_PROFILES=",${COMPOSE_PROFILES:-},"
+if [[ "$ACTIVE_PROFILES" == *",claude-chat,"* ]]; then
+  echo "  Claude Chat:   http://localhost:3000"
+fi
+if [[ "$ACTIVE_PROFILES" == *",claude-proxy,"* ]]; then
+  echo "  Claude Proxy:  http://localhost:4100"
+fi
 echo ""
 echo "  Configure your SDKs:"
 echo "    ANTHROPIC_BASE_URL=http://localhost:${LLM_PROXY_PORT:-4000}/anthropic"
