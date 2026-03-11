@@ -13,6 +13,8 @@ services:
       - "8081"
       - --set
       - web_password=${MITMPROXY_WEB_PASSWORD:-mitmpass}
+      - --scripts
+      - /home/mitmproxy/scripts/stream_sse.py
       - --verbose
     ports:
       - "${LLM_PROXY_PORT:-4000}:4000"    # llm-proxy
@@ -21,8 +23,10 @@ services:
       - "4100:4100"                         # sdk-proxy (optional: claude-proxy profile)
     environment:
       - PYTHONUNBUFFERED=1
+      - MITMPROXY_STREAM_SSE=${MITMPROXY_STREAM_SSE:-true}
     volumes:
       - mitmproxy-certs:/home/mitmproxy/.mitmproxy
+      - ./proxy:/home/mitmproxy/scripts:ro
     healthcheck:
       test: ["CMD", "python3", "-c", "import socket; s=socket.create_connection(('localhost',8081),2); s.close()"]
       interval: 2s
