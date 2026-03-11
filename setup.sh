@@ -43,13 +43,13 @@ echo "Optional services (these are in addition to the default mitmproxy + llm-pr
 PROFILES=""
 
 read -rp "  Enable Claude chat UI? [y/N]: " input
-[[ "$input" == [yY] ]] && PROFILES="${PROFILES:+$PROFILES,}chat"
+[[ "$input" == [yY] ]] && PROFILES="${PROFILES:+$PROFILES,}claude-chat"
 
 read -rp "  Enable Claude API proxy? [y/N]: " input
-[[ "$input" == [yY] ]] && PROFILES="${PROFILES:+$PROFILES,}api"
+[[ "$input" == [yY] ]] && PROFILES="${PROFILES:+$PROFILES,}claude-proxy"
 
 read -rp "  Enable Claude Code CLI? [y/N]: " input
-[[ "$input" == [yY] ]] && PROFILES="${PROFILES:+$PROFILES,}cli"
+[[ "$input" == [yY] ]] && PROFILES="${PROFILES:+$PROFILES,}claude-code"
 
 # ── API Keys (for optional Claude services) ──
 ANTHROPIC_API_KEY=""
@@ -94,11 +94,11 @@ fi
   echo "MITMPROXY_UI_PORT=${MITMPROXY_UI_PORT}"
   echo "MITMPROXY_WEB_PASSWORD=${MITMPROXY_WEB_PASSWORD}"
   echo ""
-  echo "# Optional services (comma-separated: chat,api,cli)"
+  echo "# Optional services (comma-separated: claude-chat,claude-proxy,claude-code)"
   if [[ -n "$PROFILES" ]]; then
     echo "COMPOSE_PROFILES=${PROFILES}"
   else
-    echo "# COMPOSE_PROFILES=chat,api,cli"
+    echo "# COMPOSE_PROFILES=claude-chat,claude-proxy,claude-code"
   fi
   echo ""
   echo "# Anthropic API key (for optional Claude services)"
@@ -107,6 +107,8 @@ fi
   else
     echo "# ANTHROPIC_API_KEY="
   fi
+  echo ""
+  echo "OPIK_USAGE_REPORT_ENABLED=false"
 } > .env
 
 echo ""

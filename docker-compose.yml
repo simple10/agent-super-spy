@@ -17,8 +17,8 @@ services:
     ports:
       - "${LLM_PROXY_PORT:-4000}:4000"    # llm-proxy
       - "${MITMPROXY_UI_PORT:-8081}:8081"  # mitmproxy web UI
-      - "3000:3000"                         # chat UI (optional: chat profile)
-      - "4100:4100"                         # sdk-proxy (optional: api profile)
+      - "3000:3000"                         # chat UI (optional: claude-chat profile)
+      - "4100:4100"                         # sdk-proxy (optional: claude-proxy profile)
     environment:
       - PYTHONUNBUFFERED=1
     volumes:
@@ -57,9 +57,9 @@ services:
       timeout: 5s
       retries: 15
 
-  sdk-chat:
+  claude-sdk-chat:
     build: ./claude/sdk-chat
-    profiles: ["chat"]
+    profiles: ["claude-chat"]
     network_mode: "service:mitmproxy"
     depends_on:
       mitmproxy:
@@ -80,7 +80,7 @@ services:
 
   claude-code:
     build: ./claude/claude-code
-    profiles: ["cli"]
+    profiles: ["claude-code"]
     network_mode: "service:mitmproxy"
     depends_on:
       mitmproxy:
@@ -99,9 +99,9 @@ services:
       - mitmproxy-certs:/certs:ro
       - claude-code-home:/root
 
-  sdk-proxy:
+  claude-sdk-proxy:
     build: ./claude/sdk-proxy
-    profiles: ["api"]
+    profiles: ["claude-proxy"]
     network_mode: "service:mitmproxy"
     depends_on:
       mitmproxy:
@@ -111,7 +111,7 @@ services:
     environment:
       - CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - API_SERVER_KEY=${API_SERVER_KEY:-}
+      - API_SERVER_KEY=${CLAUDE_SDK_PROXY_KEY:-}
       - API_PORT=4100
       - HTTP_PROXY=http://localhost:8080
       - HTTPS_PROXY=http://localhost:8080

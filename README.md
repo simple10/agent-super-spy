@@ -7,14 +7,16 @@ Point your agents, SDKs, or tools at the LLM proxy and get full visibility into 
 ## What's Included
 
 **Default stack (always running):**
+
 - **llm-proxy** — Generic LLM API reverse proxy with path-based routing, API key management, and automatic Opik trace logging
 - **mitmproxy** — Transparent HTTPS proxy with web UI for raw traffic inspection
 - **Opik** — Trace/span visualization and analysis UI
 
 **Optional (via profiles):**
-- **sdk-chat** — Claude Agent SDK chat UI (`chat` profile)
-- **sdk-proxy** — Anthropic API proxy with caching (`api` profile)
-- **claude-code** — Claude Code CLI container (`cli` profile)
+
+- **claude-sdk-chat** — Claude Agent SDK chat UI (`claude-chat` profile)
+- **claude-sdk-proxy** — Anthropic API proxy with caching (`claude-proxy` profile)
+- **claude-code** — Claude Code CLI container (`claude-code` profile)
 
 ## Quick Start
 
@@ -84,6 +86,7 @@ The proxy supports transparent API key swapping via `keys.jsonc`:
 ```
 
 **How it works:**
+
 1. Your SDK sends requests with `x-api-key: my-local-key` (or `Authorization: Bearer my-local-key`)
 2. The proxy looks up `my-local-key` in `keys.jsonc`
 3. Finds the real key for the target provider
@@ -113,6 +116,7 @@ services:
 ```
 
 From the shared network, these hostnames are available:
+
 - `llm-proxy:4000` — LLM proxy
 - `mitmproxy-ui:8081` — mitmproxy web UI
 - `opik-backend:8080` — Opik API
