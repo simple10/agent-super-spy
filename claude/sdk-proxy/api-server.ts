@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs'
 
 const API_PORT = parseInt(process.env.API_PORT || '4100')
-const ANTHROPIC_BASE = 'https://api.anthropic.com'
+const ANTHROPIC_BASE = process.env.ANTHROPIC_BASE_URL || 'http://localhost:4000/anthropic'
 
 // Load the captured API template
 const template = JSON.parse(readFileSync('/api-debug/api.json', 'utf-8'))
