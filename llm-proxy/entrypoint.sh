@@ -20,8 +20,9 @@ cp "$CERT_PATH" /usr/local/share/ca-certificates/mitmproxy-ca.crt
 update-ca-certificates
 export NODE_EXTRA_CA_CERTS="$CERT_PATH"
 
-# iptables: redirect outbound HTTP/HTTPS to mitmproxy transparent proxy
-# Skip UID 1000 (mitmproxy) to avoid redirect loops
+# iptables: redirect outbound HTTP/HTTPS to mitmproxy transparent proxy (port 8085)
+# All processes in this container run as root (UID 0); the UID 1000 skip is a safety
+# net for any future non-root process that should bypass interception.
 echo "==> Setting up iptables rules..."
 iptables -t nat -A OUTPUT -m owner --uid-owner 1000 -j RETURN
 iptables -t nat -A OUTPUT -p tcp --dport 80  -j REDIRECT --to-port 8085
@@ -30,10 +31,6 @@ ip6tables -t nat -A OUTPUT -m owner --uid-owner 1000 -j RETURN
 ip6tables -t nat -A OUTPUT -p tcp --dport 80  -j REDIRECT --to-port 8085
 ip6tables -t nat -A OUTPUT -p tcp --dport 443 -j REDIRECT --to-port 8085
 echo "==> iptables configured."
-
-echo "==> Installing dependencies..."
-cd /app
-bun install
 
 echo "==> Starting LLM proxy..."
 exec bun run server.ts

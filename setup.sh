@@ -119,21 +119,26 @@ if [[ -n "$LOCAL_KEY" ]]; then
   [[ -n "$OPENAI_PROVIDER_KEY" ]] && ENTRIES+=("    \"openai\": \"${OPENAI_PROVIDER_KEY}\"")
   [[ -n "$OPENROUTER_PROVIDER_KEY" ]] && ENTRIES+=("    \"api.openrouter.com\": \"${OPENROUTER_PROVIDER_KEY}\"")
 
-  {
-    echo "{"
-    echo "  \"${LOCAL_KEY}\": {"
-    # Print entries with commas between (no trailing comma for valid JSON)
-    for i in "${!ENTRIES[@]}"; do
-      if [[ $i -lt $((${#ENTRIES[@]} - 1)) ]]; then
-        echo "${ENTRIES[$i]},"
-      else
-        echo "${ENTRIES[$i]}"
-      fi
-    done
-    echo "  }"
-    echo "}"
-  } > keys.jsonc
-  echo "==> keys.jsonc written"
+  if [[ ${#ENTRIES[@]} -eq 0 ]]; then
+    echo "  WARNING: No provider keys entered for local key '${LOCAL_KEY}'. Skipping keys.jsonc."
+    echo "  Edit keys.jsonc manually to add provider keys."
+  else
+    {
+      echo "{"
+      echo "  \"${LOCAL_KEY}\": {"
+      # Print entries with commas between (no trailing comma for valid JSON)
+      for i in "${!ENTRIES[@]}"; do
+        if [[ $i -lt $((${#ENTRIES[@]} - 1)) ]]; then
+          echo "${ENTRIES[$i]},"
+        else
+          echo "${ENTRIES[$i]}"
+        fi
+      done
+      echo "  }"
+      echo "}"
+    } > keys.jsonc
+    echo "==> keys.jsonc written"
+  fi
 elif [[ ! -f keys.jsonc ]]; then
   cp keys.jsonc.example keys.jsonc
   echo "==> keys.jsonc.example copied to keys.jsonc (edit to add your keys)"

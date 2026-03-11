@@ -69,4 +69,35 @@ describe('resolveRoute', () => {
       path: '/v1/messages',
     })
   })
+
+  // SSRF protection tests
+  test('blocks localhost', () => {
+    expect(resolveRoute('/localhost/something')).toBeNull()
+  })
+
+  test('blocks 127.x loopback', () => {
+    expect(resolveRoute('/127.0.0.1/latest/meta-data')).toBeNull()
+  })
+
+  test('blocks AWS metadata endpoint', () => {
+    expect(resolveRoute('/169.254.169.254/latest/meta-data')).toBeNull()
+  })
+
+  test('blocks RFC 1918 10.x', () => {
+    expect(resolveRoute('/10.0.0.1/api')).toBeNull()
+  })
+
+  test('blocks RFC 1918 172.16-31.x', () => {
+    expect(resolveRoute('/172.16.0.1/api')).toBeNull()
+    expect(resolveRoute('/172.31.255.255/api')).toBeNull()
+  })
+
+  test('blocks RFC 1918 192.168.x', () => {
+    expect(resolveRoute('/192.168.1.1/api')).toBeNull()
+  })
+
+  test('allows valid public hostnames', () => {
+    expect(resolveRoute('/api.openrouter.com/v1/messages')).not.toBeNull()
+    expect(resolveRoute('/api.example.com/v1/test')).not.toBeNull()
+  })
 })

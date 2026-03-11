@@ -23,6 +23,8 @@ const SKIP_HEADERS = new Set([
   'te',
   'trailer',
   'upgrade',
+  'proxy-authorization',
+  'proxy-authenticate',
 ])
 
 function buildUpstreamHeaders(
@@ -212,15 +214,16 @@ const server = Bun.serve({
       if (upstreamResp.body) {
         const [clientStream, logStream] = upstreamResp.body.tee()
 
-        // Read log stream in background for Opik
+        // Read log stream in background for Opik (with timeout to prevent memory leaks)
         ;(async () => {
+          const reader = logStream.getReader()
+          const logTimeout = setTimeout(() => reader.cancel(), 120_000)
           try {
-            const reader = logStream.getReader()
             const chunks: Uint8Array[] = []
             while (true) {
               const { done, value } = await reader.read()
               if (done) break
-              if (value) chunks.push(value)
+              if (value && value.byteLength > 0) chunks.push(value)
             }
             const fullText = new TextDecoder().decode(Buffer.concat(chunks))
             const responseBody = parseStreamForMetadata(fullText)
@@ -236,6 +239,8 @@ const server = Bun.serve({
             }).catch(() => {})
           } catch (err) {
             console.error('[proxy] Error reading log stream:', err)
+          } finally {
+            clearTimeout(logTimeout)
           }
         })()
 
