@@ -18,7 +18,7 @@ services:
       - "${LLM_PROXY_PORT:-4000}:4000"    # llm-proxy
       - "${MITMPROXY_UI_PORT:-8081}:8081"  # mitmproxy web UI
       - "3000:3000"                         # chat UI (optional: chat profile)
-      - "4100:4100"                         # claude-api (optional: api profile)
+      - "4100:4100"                         # sdk-proxy (optional: api profile)
     environment:
       - PYTHONUNBUFFERED=1
     volumes:
@@ -57,8 +57,8 @@ services:
       timeout: 5s
       retries: 15
 
-  claude:
-    build: ./claude
+  sdk-chat:
+    build: ./claude/sdk-chat
     profiles: ["chat"]
     network_mode: "service:mitmproxy"
     depends_on:
@@ -74,12 +74,12 @@ services:
       - HTTPS_PROXY=http://localhost:8080
       - NO_PROXY=localhost,127.0.0.1
     volumes:
-      - ./app:/app
+      - ./claude/sdk-chat/app:/app
       - mitmproxy-certs:/certs:ro
-      - ./credentials.json:/credentials/.credentials.json:ro
+      - ./data/claude/credentials.json:/credentials/.credentials.json:ro
 
   claude-code:
-    build: ./claude-code
+    build: ./claude/claude-code
     profiles: ["cli"]
     network_mode: "service:mitmproxy"
     depends_on:
@@ -99,8 +99,8 @@ services:
       - mitmproxy-certs:/certs:ro
       - claude-code-home:/root
 
-  claude-api:
-    build: ./claude-api
+  sdk-proxy:
+    build: ./claude/sdk-proxy
     profiles: ["api"]
     network_mode: "service:mitmproxy"
     depends_on:
@@ -117,9 +117,9 @@ services:
       - HTTPS_PROXY=http://localhost:8080
       - NO_PROXY=localhost,127.0.0.1
     volumes:
-      - ./api-debug:/api-debug
+      - ./data/sdk-proxy:/api-debug
       - mitmproxy-certs:/certs:ro
-      - ./credentials.json:/credentials/.credentials.json:ro
+      - ./data/claude/credentials.json:/credentials/.credentials.json:ro
 
 networks:
   llm-proxy-net:

@@ -55,7 +55,7 @@ read -rp "  Enable Claude Code CLI? [y/N]: " input
 ANTHROPIC_API_KEY=""
 if [[ -n "$PROFILES" ]]; then
   echo ""
-  echo "Claude services need an Anthropic API key (or use credentials.json):"
+  echo "Claude services need an Anthropic API key (or place credentials.json in data/claude/):"
   read -rp "  Anthropic API key (Enter to skip): " ANTHROPIC_API_KEY
 fi
 

@@ -12,8 +12,8 @@ Point your agents, SDKs, or tools at the LLM proxy and get full visibility into 
 - **Opik** — Trace/span visualization and analysis UI
 
 **Optional (via profiles):**
-- **claude** — Claude Agent SDK chat UI (`chat` profile)
-- **claude-api** — Anthropic API proxy with caching (`api` profile)
+- **sdk-chat** — Claude Agent SDK chat UI (`chat` profile)
+- **sdk-proxy** — Anthropic API proxy with caching (`api` profile)
 - **claude-code** — Claude Code CLI container (`cli` profile)
 
 ## Quick Start

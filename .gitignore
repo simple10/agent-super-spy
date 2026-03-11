@@ -1,9 +1,10 @@
 .DS_Store
 .env
-credentials.json
 node_modules/
 bun.lock
-api-debug/
 .opik
 opik/
 keys.jsonc
+data/claude/credentials.json
+data/sdk-proxy/*
+!data/sdk-proxy/.gitkeep

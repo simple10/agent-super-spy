@@ -23,6 +23,9 @@ echo "║   LLM Observability Stack — Starting      ║"
 echo "╚═══════════════════════════════════════════╝"
 echo ""
 
+# ── Ensure data directories exist ──
+mkdir -p data/claude data/sdk-proxy
+
 # ── Ensure keys.jsonc exists ──
 if [[ ! -f keys.jsonc ]]; then
   if [[ -f keys.jsonc.example ]]; then
