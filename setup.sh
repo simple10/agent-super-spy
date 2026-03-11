@@ -43,13 +43,13 @@ echo "Optional services (these are in addition to the default mitmproxy + llm-pr
 PROFILES=""
 
 read -rp "  Enable Claude chat UI? [y/N]: " input
-[[ "${input,,}" == "y" ]] && PROFILES="${PROFILES:+$PROFILES,}chat"
+[[ "$input" == [yY] ]] && PROFILES="${PROFILES:+$PROFILES,}chat"
 
 read -rp "  Enable Claude API proxy? [y/N]: " input
-[[ "${input,,}" == "y" ]] && PROFILES="${PROFILES:+$PROFILES,}api"
+[[ "$input" == [yY] ]] && PROFILES="${PROFILES:+$PROFILES,}api"
 
 read -rp "  Enable Claude Code CLI? [y/N]: " input
-[[ "${input,,}" == "y" ]] && PROFILES="${PROFILES:+$PROFILES,}cli"
+[[ "$input" == [yY] ]] && PROFILES="${PROFILES:+$PROFILES,}cli"
 
 # ── API Keys (for optional Claude services) ──
 ANTHROPIC_API_KEY=""
