@@ -4,13 +4,26 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# ── Colors ──
+if [[ -t 1 ]]; then
+  BOLD='\033[1m'
+  DIM='\033[2m'
+  CYAN='\033[36m'
+  GREEN='\033[32m'
+  YELLOW='\033[33m'
+  RED='\033[31m'
+  RESET='\033[0m'
+else
+  BOLD='' DIM='' CYAN='' GREEN='' YELLOW='' RED='' RESET=''
+fi
+
 # ── Load .env ──
 if [[ -f .env ]]; then
   set -a
   source .env
   set +a
 else
-  echo "No .env file found. Run ./setup.sh first, or copy .env.example to .env"
+  echo -e "${RED}No .env file found. Run ./setup.sh first, or copy .env.example to .env${RESET}"
   exit 1
 fi
 
@@ -18,10 +31,31 @@ NETWORK_NAME="${NETWORK_NAME:-llm-proxy-net}"
 OPIK_DIR="$SCRIPT_DIR/opik"
 OPIK_REPO="https://github.com/comet-ml/opik.git"
 
-echo "╔═══════════════════════════════════════════╗"
-echo "║   LLM Observability Stack — Starting      ║"
-echo "╚═══════════════════════════════════════════╝"
+echo -e "${BOLD}${CYAN}╔═══════════════════════════════════════════╗${RESET}"
+echo -e "${BOLD}${CYAN}║   LLM Observability Stack — Starting      ║${RESET}"
+echo -e "${BOLD}${CYAN}╚═══════════════════════════════════════════╝${RESET}"
 echo ""
+
+# ── Build or just start? ──
+BUILD_FLAG=""
+if [[ "${1:-}" == "--build" ]]; then
+  BUILD_FLAG="--build"
+  echo -e "${DIM}Build requested via --build flag${RESET}"
+elif [[ "${1:-}" == "--no-build" ]]; then
+  BUILD_FLAG=""
+  echo -e "${DIM}Skipping build via --no-build flag${RESET}"
+else
+  echo -e "${YELLOW}Build Docker images?${RESET}"
+  echo -e "  ${DIM}(b)uild    — rebuild images before starting${RESET}"
+  echo -e "  ${DIM}(s)tart    — start with existing images (faster)${RESET}"
+  echo ""
+  read -r -p "$(echo -e "${BOLD}[b/S]:${RESET} ")" choice
+  case "$choice" in
+    b|B|build|Build) BUILD_FLAG="--build" ;;
+    *)               BUILD_FLAG="" ;;
+  esac
+  echo ""
+fi
 
 # ── Ensure data directories exist ──
 mkdir -p data/claude data/sdk-proxy
@@ -30,28 +64,28 @@ mkdir -p data/claude data/sdk-proxy
 if [[ ! -f keys.jsonc ]]; then
   if [[ -f keys.jsonc.example ]]; then
     cp keys.jsonc.example keys.jsonc
-    echo "==> Copied keys.jsonc.example to keys.jsonc (edit to add your keys)"
+    echo -e "${YELLOW}==> Copied keys.jsonc.example to keys.jsonc (edit to add your keys)${RESET}"
   else
     echo '{}' > keys.jsonc
-    echo "==> Created empty keys.jsonc"
+    echo -e "${YELLOW}==> Created empty keys.jsonc${RESET}"
   fi
 fi
 
 # ── Clone or update Opik ──
 if [[ -d "$OPIK_DIR/.git" ]]; then
-  echo "==> Updating Opik..."
-  git -C "$OPIK_DIR" pull --ff-only 2>/dev/null || echo "    Warning: could not update (you may have local changes)"
+  echo -e "${CYAN}==> Updating Opik...${RESET}"
+  git -C "$OPIK_DIR" pull --ff-only 2>/dev/null || echo -e "    ${YELLOW}Warning: could not update (you may have local changes)${RESET}"
 else
-  echo "==> Cloning Opik..."
+  echo -e "${CYAN}==> Cloning Opik...${RESET}"
   git clone --depth 1 "$OPIK_REPO" "$OPIK_DIR"
 fi
 
 # ── Create shared Docker network ──
-echo "==> Creating network ${NETWORK_NAME}..."
+echo -e "${CYAN}==> Creating network ${NETWORK_NAME}...${RESET}"
 docker network create "$NETWORK_NAME" 2>/dev/null || true
 
 # ── Start Opik ──
-echo "==> Starting Opik..."
+echo -e "${CYAN}==> Starting Opik...${RESET}"
 docker compose \
   -p opik \
   -f "$OPIK_DIR/deployment/docker-compose/docker-compose.yaml" \
@@ -70,47 +104,50 @@ wait_healthy() {
 
   container_id=$($OPIK_COMPOSE ps -q "$service" 2>/dev/null)
   if [[ -z "$container_id" ]]; then
-    echo "    WARNING: service $service not found"
+    echo -e "    ${YELLOW}WARNING: service $service not found${RESET}"
     return
   fi
 
-  echo -n "    $service..."
+  echo -n -e "    ${DIM}$service...${RESET}"
   until docker inspect -f '{{.State.Health.Status}}' "$container_id" 2>/dev/null | grep -q healthy; do
     sleep 3
     elapsed=$((elapsed + 3))
     if [[ "$elapsed" -ge "$timeout" ]]; then
-      echo " TIMEOUT (${timeout}s, continuing anyway)"
+      echo -e " ${RED}TIMEOUT (${timeout}s, continuing anyway)${RESET}"
       return
     fi
   done
-  echo " ready"
+  echo -e " ${GREEN}ready${RESET}"
 }
 
-echo "==> Waiting for Opik services..."
+echo -e "${CYAN}==> Waiting for Opik services...${RESET}"
 wait_healthy backend 180
 wait_healthy frontend 60
 
 # ── Start proxy stack ──
-echo "==> Starting proxy stack..."
-docker compose up -d --build
+echo -e "${CYAN}==> Starting proxy stack...${RESET}"
+docker compose up -d $BUILD_FLAG
 
 echo ""
-echo "==> Stack is running!"
+echo -e "${BOLD}${GREEN}==> Stack is running!${RESET}"
 echo ""
-echo "  LLM Proxy:    http://localhost:${LLM_PROXY_PORT:-4000}"
-echo "  mitmproxy UI: http://localhost:${MITMPROXY_UI_PORT:-8081}"
-echo "  Opik UI:      http://localhost:5173"
+echo -e "  ${BOLD}mitmproxy UI:${RESET} ${YELLOW}http://localhost:${MITMPROXY_UI_PORT:-8081}?token=${MITMPROXY_WEB_PASSWORD:-mitmpass}${RESET}  ${DIM}(password: ${MITMPROXY_WEB_PASSWORD:-mitmpass})${RESET}"
+echo -e "  ${BOLD}Opik UI:${RESET}      ${YELLOW}http://localhost:5173${RESET}"
 ACTIVE_PROFILES=",${COMPOSE_PROFILES:-},"
 if [[ "$ACTIVE_PROFILES" == *",claude-chat,"* ]]; then
-  echo "  Claude Chat:   http://localhost:3000"
-fi
-if [[ "$ACTIVE_PROFILES" == *",claude-proxy,"* ]]; then
-  echo "  Claude Proxy:  http://localhost:4100"
+  echo -e "  ${BOLD}Claude Chat:${RESET}  ${YELLOW}http://localhost:3000${RESET}"
 fi
 echo ""
-echo "  Configure your SDKs:"
-echo "    ANTHROPIC_BASE_URL=http://localhost:${LLM_PROXY_PORT:-4000}/anthropic"
-echo "    OPENAI_BASE_URL=http://localhost:${LLM_PROXY_PORT:-4000}/openai"
-echo "  Or from other docker-compose projects using the same network:"
-echo "    ANTHROPIC_BASE_URL=http://llm-proxy:${LLM_PROXY_PORT:-4000}/anthropic"
-echo "    OPENAI_BASE_URL=http://llm-proxy:${LLM_PROXY_PORT:-4000}/openai"
+echo -e "  ${BOLD}LLM Proxy:${RESET}    http://localhost:${LLM_PROXY_PORT:-4000}"
+if [[ "$ACTIVE_PROFILES" == *",claude-proxy,"* ]]; then
+  echo -e "  ${BOLD}Claude Proxy:${RESET} http://localhost:4100"
+fi
+echo ""
+echo -e "  ${BOLD}Configure your SDKs:${RESET}"
+echo -e "    ${DIM}ANTHROPIC_BASE_URL=${RESET}http://localhost:${LLM_PROXY_PORT:-4000}/anthropic"
+echo -e "    ${DIM}OPENAI_BASE_URL=${RESET}http://localhost:${LLM_PROXY_PORT:-4000}/openai"
+echo ""
+echo -e "  ${BOLD}From other docker-compose projects${RESET} ${DIM}(network: ${NETWORK_NAME:-llm-proxy-net}):${RESET}"
+echo -e "    ${DIM}ANTHROPIC_BASE_URL=${RESET}http://llm-proxy:${LLM_PROXY_PORT:-4000}/anthropic"
+echo -e "    ${DIM}OPENAI_BASE_URL=${RESET}http://llm-proxy:${LLM_PROXY_PORT:-4000}/openai"
+echo ""
