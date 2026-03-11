@@ -9,6 +9,7 @@ export type TransformContext = {
 export type TransformResult = {
   input: Record<string, unknown>
   cacheHints?: CacheHints
+  disableCaching?: boolean
 }
 
 export type InputTransformer = (
@@ -72,18 +73,21 @@ export async function transformInput(
 ): Promise<TransformResult> {
   let currentInput = input
   let cacheHints: CacheHints | undefined
+  let disableCaching = false
 
   for (const transformer of inputTransformers) {
     const result = await transformer(currentInput, context)
     if (!isRecord(result?.input)) {
-      throw new Error('Input transform plugin must return { input, cacheHints? }')
+      throw new Error('Input transform plugin must return { input, cacheHints?, disableCaching? }')
     }
     currentInput = result.input
     cacheHints = mergeCacheHints(cacheHints, result.cacheHints)
+    disableCaching = disableCaching || result.disableCaching === true
   }
 
   return {
     input: currentInput,
     cacheHints,
+    disableCaching,
   }
 }

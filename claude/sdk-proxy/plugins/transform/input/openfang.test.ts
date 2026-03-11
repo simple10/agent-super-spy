@@ -2,42 +2,29 @@ import { describe, expect, test } from 'bun:test'
 import { transformInput } from './openfang'
 
 describe('openfang transformInput', () => {
-  test('moves the current date section into a final system block and hints the stable prefix', async () => {
+  test('disables caching entirely for openfang prompts on max routes', async () => {
+    const input = {
+      system: [
+        {
+          type: 'text',
+          text:
+            'You are a helpful AI assistant.\n\n## Current Date\nToday is Wednesday, March 11, 2026 (2026-03-11 18:27 +00:00).\n\n## Tool Call Behavior\n- Use tools when needed.',
+        },
+      ],
+    }
+
     const result = await transformInput(
-      {
-        system: [
-          {
-            type: 'text',
-            text:
-              'You are a helpful AI assistant.\n\n## Current Date\nToday is Wednesday, March 11, 2026 (2026-03-11 18:27 +00:00).\n\n## Tool Call Behavior\n- Use tools when needed.',
-          },
-        ],
-      },
+      input,
       { cacheType: 'max' },
     )
 
     expect(result).toEqual({
-      input: {
-        system: [
-          {
-            type: 'text',
-            text:
-              'You are a helpful AI assistant.\n\n## Tool Call Behavior\n- Use tools when needed.',
-          },
-          {
-            type: 'text',
-            text:
-              '## Current Date\nToday is Wednesday, March 11, 2026 (2026-03-11 18:27 +00:00).',
-          },
-        ],
-      },
-      cacheHints: {
-        system: 0,
-      },
+      input,
+      disableCaching: true,
     })
   })
 
-  test('does not modify input for non-max cache routes', async () => {
+  test('disables caching entirely for openfang prompts on auto routes too', async () => {
     const input = {
       system: [
         {
@@ -47,6 +34,17 @@ describe('openfang transformInput', () => {
       ],
     }
 
-    expect(await transformInput(input, { cacheType: 'auto' })).toEqual({ input })
+    expect(await transformInput(input, { cacheType: 'auto' })).toEqual({
+      input,
+      disableCaching: true,
+    })
+  })
+
+  test('does not modify non-openfang input', async () => {
+    const input = {
+      system: [{ type: 'text', text: 'You are a different assistant.' }],
+    }
+
+    expect(await transformInput(input, { cacheType: 'max' })).toEqual({ input })
   })
 })

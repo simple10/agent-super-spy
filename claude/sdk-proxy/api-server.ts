@@ -156,24 +156,29 @@ const server = Bun.serve({
       const callerBody = (await req.json()) as Record<string, unknown>
       let merged = mergeMessagesBody(callerBody)
       let cacheHints: CacheHints | undefined
+      let disableCaching = false
       const cacheType = cacheControlMax ? 'max' : cacheControlAuto ? 'auto' : null
 
       if (cacheType) {
         const transformed = await transformInput(merged, { cacheType })
         merged = transformed.input
         cacheHints = transformed.cacheHints
+        disableCaching = transformed.disableCaching === true
         if (cacheHints) {
           console.log(`[api] Applied input transform cache hints: ${JSON.stringify(cacheHints)}`)
         }
+        if (disableCaching) {
+          console.log('[api] Input transform disabled caching for this request')
+        }
       }
 
-      if (cacheControlMax) {
+      if (cacheControlMax && !disableCaching) {
         const applied = applyCacheControlMax(merged, cacheHints)
         merged = applied.body
         if (applied.changes.length > 0) {
           console.log(`[api] Added cache_control breakpoints: ${applied.changes.join(', ')}`)
         }
-      } else if (cacheControlAuto) {
+      } else if (cacheControlAuto && !disableCaching) {
         if (!merged.cache_control) {
           merged.cache_control = CACHE_5M
           console.log('[api] Added top-level cache_control (auto)')
