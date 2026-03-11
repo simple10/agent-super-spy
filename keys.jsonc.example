@@ -1,0 +1,23 @@
+{
+  // Local API key → real provider keys
+  // Clients send the local key to llm-proxy, which swaps it for the real key.
+  //
+  // Usage: set your SDK's base URL to http://llm-proxy:4000/<provider>
+  //   ANTHROPIC_BASE_URL=http://localhost:4000/anthropic
+  //   OPENAI_BASE_URL=http://localhost:4000/openai
+  //   Or for any provider: http://localhost:4000/api.openrouter.com
+  //
+  // Then set your SDK's API key to one of the local keys below.
+
+  "my-local-key": {
+    "anthropic": "sk-ant-...",
+    "openai": "sk-...",
+    "api.openrouter.com": "sk-or-..."
+  }
+
+  // Add more local keys for different users/agents:
+  // "another-key": {
+  //   "anthropic": "sk-ant-...",
+  //   "openai": "sk-..."
+  // }
+}

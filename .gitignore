@@ -4,3 +4,6 @@ credentials.json
 node_modules/
 bun.lock
 api-debug/
+.opik
+opik/
+keys.jsonc
