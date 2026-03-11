@@ -61,7 +61,7 @@ bun run capture.ts || true
 sleep 1
 
 kill $INTERCEPT_PID 2>/dev/null || true
-unset ANTHROPIC_BASE_URL
+export ANTHROPIC_BASE_URL=${CLAUDE_PROXY_ANTHROPIC_BASE_URL}
 
 if [ -f /api-debug/api.json ]; then
   echo "==> Captured API request template."
