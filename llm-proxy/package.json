@@ -1,5 +1,11 @@
 {
   "name": "llm-proxy",
   "version": "1.0.0",
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "^0.205.0",
+    "@opentelemetry/resources": "^2.0.0",
+    "@opentelemetry/sdk-trace-base": "^2.5.1"
+  }
 }

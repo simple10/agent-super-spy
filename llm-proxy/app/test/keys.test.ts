@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test'
-import { extractCallerAuth, resolveRealKey, loadKeys } from './keys'
+import { extractCallerAuth, resolveRealKey, loadKeys } from '../lib/keys'
 import { writeFileSync, unlinkSync, mkdtempSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'

@@ -12,6 +12,7 @@ echo ""
 NETWORK_NAME="llm-proxy-net"
 COMPOSE_PROJECT_NAME="llm-stack"
 OPIK_PROJECT_NAME="llm-proxy"
+TRACE_EXPORTERS="opik"
 LLM_PROXY_PORT="4000"
 MITMPROXY_UI_PORT="8081"
 MITMPROXY_WEB_PASSWORD="mitmpass"
@@ -27,6 +28,9 @@ COMPOSE_PROJECT_NAME="${input:-$COMPOSE_PROJECT_NAME}"
 read -rp "Opik project name for traces [$OPIK_PROJECT_NAME]: " input
 OPIK_PROJECT_NAME="${input:-$OPIK_PROJECT_NAME}"
 
+read -rp "Trace exporters (comma-separated: opik,phoenix) [$TRACE_EXPORTERS]: " input
+TRACE_EXPORTERS="${input:-$TRACE_EXPORTERS}"
+
 read -rp "LLM proxy port [$LLM_PROXY_PORT]: " input
 LLM_PROXY_PORT="${input:-$LLM_PROXY_PORT}"
 
@@ -41,6 +45,9 @@ MITMPROXY_WEB_PASSWORD="${input:-$MITMPROXY_WEB_PASSWORD}"
 echo ""
 echo "Optional services (these are in addition to the default mitmproxy + llm-proxy + opik stack):"
 PROFILES=""
+
+read -rp "  Enable Phoenix? [y/N]: " input
+[[ "$input" == [yY] ]] && PROFILES="${PROFILES:+$PROFILES,}phoenix"
 
 read -rp "  Enable Claude chat UI? [y/N]: " input
 [[ "$input" == [yY] ]] && PROFILES="${PROFILES:+$PROFILES,}claude-chat"
@@ -88,17 +95,22 @@ fi
   echo ""
   echo "# LLM Proxy"
   echo "LLM_PROXY_PORT=${LLM_PROXY_PORT}"
+  echo "TRACE_EXPORTERS=${TRACE_EXPORTERS}"
   echo "OPIK_PROJECT_NAME=${OPIK_PROJECT_NAME}"
+  echo "# OPIK_OTEL_ENDPOINT=http://opik-frontend:5173/api/v1/private/otel/v1/traces"
+  echo "# PHOENIX_COLLECTOR_ENDPOINT=http://phoenix:6006"
+  echo "# PHOENIX_PROJECT_NAME=llm-proxy"
+  echo "# PHOENIX_API_KEY="
   echo ""
   echo "# mitmproxy"
   echo "MITMPROXY_UI_PORT=${MITMPROXY_UI_PORT}"
   echo "MITMPROXY_WEB_PASSWORD=${MITMPROXY_WEB_PASSWORD}"
   echo ""
-  echo "# Optional services (comma-separated: claude-chat,claude-proxy,claude-code)"
+  echo "# Optional services (comma-separated: phoenix,claude-chat,claude-proxy,claude-code)"
   if [[ -n "$PROFILES" ]]; then
     echo "COMPOSE_PROFILES=${PROFILES}"
   else
-    echo "# COMPOSE_PROFILES=claude-chat,claude-proxy,claude-code"
+    echo "# COMPOSE_PROFILES=phoenix,claude-chat,claude-proxy,claude-code"
   fi
   echo ""
   echo "# Anthropic API key (for optional Claude services)"

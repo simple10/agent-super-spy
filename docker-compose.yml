@@ -49,8 +49,16 @@ services:
       - NET_ADMIN
     environment:
       - LLM_PROXY_PORT=4000
-      - OPIK_BASE_URL=${OPIK_BASE_URL:-http://opik-backend:8080}
+      - TRACE_EXPORTERS=${TRACE_EXPORTERS:-opik}
+      - OPIK_OTEL_ENDPOINT=${OPIK_OTEL_ENDPOINT:-http://opik-frontend:5173/api/v1/private/otel/v1/traces}
       - OPIK_PROJECT_NAME=${OPIK_PROJECT_NAME:-llm-proxy}
+      - OPIK_API_KEY=${OPIK_API_KEY:-}
+      - OPIK_WORKSPACE=${OPIK_WORKSPACE:-}
+      - OPIK_OTEL_HEADERS=${OPIK_OTEL_HEADERS:-}
+      - PHOENIX_COLLECTOR_ENDPOINT=${PHOENIX_COLLECTOR_ENDPOINT:-http://phoenix:6006}
+      - PHOENIX_PROJECT_NAME=${PHOENIX_PROJECT_NAME:-llm-proxy}
+      - PHOENIX_API_KEY=${PHOENIX_API_KEY:-}
+      - PHOENIX_OTEL_HEADERS=${PHOENIX_OTEL_HEADERS:-}
       - KEYS_PATH=/app/keys.jsonc
     volumes:
       - ./keys.jsonc:/app/keys.jsonc:ro
@@ -60,6 +68,27 @@ services:
       interval: 2s
       timeout: 5s
       retries: 15
+
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    profiles: ["phoenix"]
+    ports:
+      - "6006:6006"
+      - "4317:4317"
+    environment:
+      - PHOENIX_WORKING_DIR=/mnt/data
+    volumes:
+      - ./data/phoenix:/mnt/data
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:6006"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      default:
+      llm-proxy-net:
+        aliases:
+          - phoenix
 
   claude-sdk-chat:
     build: ./claude/sdk-chat

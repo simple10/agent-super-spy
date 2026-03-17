@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { buildUpstreamHeaders, stripRespHeaders } from './headers'
+import { buildUpstreamHeaders, stripRespHeaders } from '../lib/headers'
 
 describe('buildUpstreamHeaders', () => {
   test('preserves end-to-end headers and swaps bearer auth', () => {
@@ -45,4 +45,3 @@ describe('stripRespHeaders', () => {
     expect(headers.has('connection')).toBeFalse()
   })
 })
-

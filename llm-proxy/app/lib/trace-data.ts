@@ -1,6 +1,3 @@
-const OPIK_BASE_URL = process.env.OPIK_BASE_URL || 'http://opik-backend:8080'
-const OPIK_PROJECT = process.env.OPIK_PROJECT_NAME || 'llm-proxy'
-
 export interface TraceData {
   provider: string
   method: string
@@ -229,72 +226,4 @@ export function generateUuidV7(date: Date = new Date()): string {
 
   const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('')
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
-}
-
-async function postOpik(path: string, body: Record<string, unknown>): Promise<void> {
-  const resp = await fetch(`${OPIK_BASE_URL}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-
-  if (!resp.ok) {
-    const text = await resp.text()
-    throw new Error(`${path} -> ${resp.status} ${text}`.trim())
-  }
-}
-
-export async function logTrace(data: TraceData): Promise<void> {
-  const traceId = generateUuidV7(data.startTime)
-  const spanId = generateUuidV7(data.endTime)
-  const { model, usage } = extractModelAndUsage(data.provider, data.requestBody, data.responseBody)
-  const startISO = data.startTime.toISOString()
-  const endISO = data.endTime.toISOString()
-  const loggedInput = buildLoggedInput(data.requestBody)
-  const loggedOutput = buildLoggedOutput(data.responseBody)
-
-  try {
-    await postOpik('/v1/private/traces', {
-      id: traceId,
-      project_name: OPIK_PROJECT,
-      name: `${data.method} ${data.path}`,
-      start_time: startISO,
-      end_time: endISO,
-      input: loggedInput,
-      output: loggedOutput,
-      metadata: { provider: data.provider, model, status_code: data.statusCode },
-      tags: [data.provider, model],
-    })
-
-    await postOpik('/v1/private/spans', {
-      id: spanId,
-      trace_id: traceId,
-      project_name: OPIK_PROJECT,
-      name: `${data.provider} ${data.path}`,
-      type: 'llm',
-      start_time: startISO,
-      end_time: endISO,
-      input: loggedInput,
-      output: loggedOutput,
-      model,
-      provider: data.provider,
-      usage,
-      metadata: { status_code: data.statusCode },
-      ...(data.error
-        ? {
-            error_info: {
-              exception_type: 'ProxyError',
-              message: data.error,
-              traceback: data.error,
-            },
-          }
-        : {}),
-    })
-
-    console.log(
-      `[opik] trace=${traceId.slice(0, 8)} | ${data.provider} ${model} | ${usage.total_tokens || 0} tokens`,
-    )
-  } catch (err) {
-    console.error('[opik] Failed to log trace:', err)
-  }
 }

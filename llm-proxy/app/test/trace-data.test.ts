@@ -6,7 +6,7 @@ import {
   generateUuidV7,
   summarizeTraceInput,
   summarizeTraceOutput,
-} from './opik'
+} from '../lib/trace-data'
 
 describe('generateUuidV7', () => {
   test('creates an RFC 9562 UUIDv7', () => {
@@ -77,7 +77,7 @@ describe('summarizeTraceOutput', () => {
 })
 
 describe('buildLoggedInput', () => {
-  test('wraps structured requests with an input summary for Opik previews', () => {
+  test('wraps structured requests with an input summary for previews', () => {
     expect(
       buildLoggedInput({
         system: 'You are a terse assistant.',
@@ -94,7 +94,7 @@ describe('buildLoggedInput', () => {
 })
 
 describe('buildLoggedOutput', () => {
-  test('wraps structured responses with an output summary for Opik previews', () => {
+  test('wraps structured responses with an output summary for previews', () => {
     expect(
       buildLoggedOutput({
         _stream: true,

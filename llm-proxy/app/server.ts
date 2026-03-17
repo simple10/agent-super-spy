@@ -1,7 +1,7 @@
-import { resolveRoute } from './router'
-import { loadKeys, extractCallerAuth, resolveRealKey, type KeyConfig } from './keys'
-import { buildUpstreamHeaders, stripRespHeaders } from './headers'
-import { logTrace } from './opik'
+import { resolveRoute } from './lib/router'
+import { loadKeys, extractCallerAuth, resolveRealKey, type KeyConfig } from './lib/keys'
+import { buildUpstreamHeaders, stripRespHeaders } from './lib/headers'
+import { getTraceExporterSummary, getTraceTargetSummary, logTrace } from './lib/tracing'
 
 const PORT = parseInt(process.env.LLM_PROXY_PORT || '4000')
 const KEYS_PATH = process.env.KEYS_PATH || '/app/keys.jsonc'
@@ -208,7 +208,7 @@ const app = {
       const contentType = upstreamResp.headers.get('content-type') || ''
       const respHeaders = stripRespHeaders(upstreamResp)
 
-      // Non-streaming response: capture full body for Opik
+      // Non-streaming response: capture full body for trace exporters
       if (!contentType.includes('text/event-stream')) {
         const endTime = new Date()
         const respText = await upstreamResp.text()
@@ -219,7 +219,7 @@ const app = {
           responseBody = respText
         }
 
-        // Fire-and-forget Opik logging
+        // Fire-and-forget trace logging
         logTrace({
           provider: route.provider,
           method: req.method,
@@ -241,7 +241,7 @@ const app = {
       if (upstreamResp.body) {
         const [clientStream, logStream] = upstreamResp.body.tee()
 
-        // Read log stream in background for Opik (with timeout to prevent memory leaks)
+        // Read log stream in background for trace logging (with timeout to prevent memory leaks)
         ;(async () => {
           const reader = logStream.getReader()
           const logTimeout = setTimeout(() => reader.cancel(), 120_000)
@@ -311,6 +311,7 @@ if (import.meta.main) {
 
   console.log(`[llm-proxy] Listening on http://localhost:${PORT}`)
   console.log(`[llm-proxy] Keys: ${Object.keys(keyConfig).length} local keys loaded`)
-  console.log(`[llm-proxy] Opik: ${process.env.OPIK_BASE_URL || 'http://opik-backend:8080'}`)
+  console.log(`[llm-proxy] Trace exporters: ${getTraceExporterSummary()}`)
+  console.log(`[llm-proxy] Trace targets: ${getTraceTargetSummary()}`)
   console.log(`[llm-proxy] Routes: /anthropic/*, /openai/*, /<hostname>/*`)
 }

@@ -7,5 +7,5 @@
     "esModuleInterop": true,
     "outDir": "dist"
   },
-  "include": ["*.ts"]
+  "include": ["app/**/*.ts"]
 }

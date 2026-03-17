@@ -33,4 +33,4 @@ ip6tables -t nat -A OUTPUT -p tcp --dport 443 -j REDIRECT --to-port 8085
 echo "==> iptables configured."
 
 echo "==> Starting LLM proxy..."
-exec bun run server.ts
+exec bun run app/server.ts

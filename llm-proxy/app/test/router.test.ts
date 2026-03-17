@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test'
-import { resolveRoute } from './router'
+import { resolveRoute } from '../lib/router'
 
 describe('resolveRoute', () => {
   test('routes anthropic provider', () => {

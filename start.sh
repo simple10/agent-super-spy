@@ -31,6 +31,22 @@ NETWORK_NAME="${NETWORK_NAME:-llm-proxy-net}"
 OPIK_DIR="$SCRIPT_DIR/opik"
 OPIK_REPO="https://github.com/comet-ml/opik.git"
 
+csv_has_value() {
+  local csv
+  csv=",$(echo "${1:-}" | tr -d '[:space:]'),"
+  [[ "$csv" == *",$2,"* ]]
+}
+
+OPIK_ENABLED=false
+if csv_has_value "$COMPOSE_PROFILES" "opik" || csv_has_value "${TRACE_EXPORTERS:-opik}" "opik"; then
+  OPIK_ENABLED=true
+fi
+
+PHOENIX_ENABLED=false
+if csv_has_value "$COMPOSE_PROFILES" "phoenix"; then
+  PHOENIX_ENABLED=true
+fi
+
 echo -e "${BOLD}${CYAN}╔═══════════════════════════════════════════╗${RESET}"
 echo -e "${BOLD}${CYAN}║   LLM Observability Stack — Starting      ║${RESET}"
 echo -e "${BOLD}${CYAN}╚═══════════════════════════════════════════╝${RESET}"
@@ -58,7 +74,7 @@ else
 fi
 
 # ── Ensure data directories exist ──
-mkdir -p data/claude data/sdk-proxy
+mkdir -p data/claude data/sdk-proxy data/phoenix
 
 # ── Ensure keys.jsonc exists ──
 if [[ ! -f keys.jsonc ]]; then
@@ -71,27 +87,9 @@ if [[ ! -f keys.jsonc ]]; then
   fi
 fi
 
-# ── Clone or update Opik ──
-if [[ -d "$OPIK_DIR/.git" ]]; then
-  echo -e "${CYAN}==> Updating Opik...${RESET}"
-  git -C "$OPIK_DIR" pull --ff-only 2>/dev/null || echo -e "    ${YELLOW}Warning: could not update (you may have local changes)${RESET}"
-else
-  echo -e "${CYAN}==> Cloning Opik...${RESET}"
-  git clone --depth 1 "$OPIK_REPO" "$OPIK_DIR"
-fi
-
 # ── Create shared Docker network ──
 echo -e "${CYAN}==> Creating network ${NETWORK_NAME}...${RESET}"
 docker network create "$NETWORK_NAME" 2>/dev/null || true
-
-# ── Start Opik ──
-echo -e "${CYAN}==> Starting Opik...${RESET}"
-docker compose \
-  -p opik \
-  -f "$OPIK_DIR/deployment/docker-compose/docker-compose.yaml" \
-  -f "$SCRIPT_DIR/opik-network.yml" \
-  --profile opik \
-  up -d
 
 # ── Helper: wait for a compose service to be healthy ──
 OPIK_COMPOSE="docker compose -p opik -f $OPIK_DIR/deployment/docker-compose/docker-compose.yaml -f $SCRIPT_DIR/opik-network.yml --profile opik"
@@ -120,9 +118,31 @@ wait_healthy() {
   echo -e " ${GREEN}ready${RESET}"
 }
 
-echo -e "${CYAN}==> Waiting for Opik services...${RESET}"
-wait_healthy backend 180
-wait_healthy frontend 60
+if [[ "$OPIK_ENABLED" == true ]]; then
+  # ── Clone or update Opik ──
+  if [[ -d "$OPIK_DIR/.git" ]]; then
+    echo -e "${CYAN}==> Updating Opik...${RESET}"
+    git -C "$OPIK_DIR" pull --ff-only 2>/dev/null || echo -e "    ${YELLOW}Warning: could not update (you may have local changes)${RESET}"
+  else
+    echo -e "${CYAN}==> Cloning Opik...${RESET}"
+    git clone --depth 1 "$OPIK_REPO" "$OPIK_DIR"
+  fi
+
+  # ── Start Opik ──
+  echo -e "${CYAN}==> Starting Opik...${RESET}"
+  docker compose \
+    -p opik \
+    -f "$OPIK_DIR/deployment/docker-compose/docker-compose.yaml" \
+    -f "$SCRIPT_DIR/opik-network.yml" \
+    --profile opik \
+    up -d
+
+  echo -e "${CYAN}==> Waiting for Opik services...${RESET}"
+  wait_healthy backend 180
+  wait_healthy frontend 60
+else
+  echo -e "${DIM}Skipping Opik startup (not enabled)${RESET}"
+fi
 
 # ── Start proxy stack ──
 echo -e "${CYAN}==> Starting proxy stack...${RESET}"
@@ -132,14 +152,18 @@ echo ""
 echo -e "${BOLD}${GREEN}==> Stack is running!${RESET}"
 echo ""
 echo -e "  ${BOLD}mitmproxy UI:${RESET} ${YELLOW}http://localhost:${MITMPROXY_UI_PORT:-8081}?token=${MITMPROXY_WEB_PASSWORD:-mitmpass}${RESET}  ${DIM}(password: ${MITMPROXY_WEB_PASSWORD:-mitmpass})${RESET}"
-echo -e "  ${BOLD}Opik UI:${RESET}      ${YELLOW}http://localhost:5173${RESET}"
-ACTIVE_PROFILES=",${COMPOSE_PROFILES:-},"
-if [[ "$ACTIVE_PROFILES" == *",claude-chat,"* ]]; then
+if [[ "$OPIK_ENABLED" == true ]]; then
+  echo -e "  ${BOLD}Opik UI:${RESET}      ${YELLOW}http://localhost:5173${RESET}"
+fi
+if [[ "$PHOENIX_ENABLED" == true ]]; then
+  echo -e "  ${BOLD}Phoenix UI:${RESET}   ${YELLOW}http://localhost:6006${RESET}"
+fi
+if csv_has_value "$COMPOSE_PROFILES" "claude-chat"; then
   echo -e "  ${BOLD}Claude Chat:${RESET}  ${YELLOW}http://localhost:3000${RESET}"
 fi
 echo ""
 echo -e "  ${BOLD}LLM Proxy:${RESET}    http://localhost:${LLM_PROXY_PORT:-4000}"
-if [[ "$ACTIVE_PROFILES" == *",claude-proxy,"* ]]; then
+if csv_has_value "$COMPOSE_PROFILES" "claude-proxy"; then
   echo -e "  ${BOLD}Claude Proxy:${RESET} http://localhost:4100"
 fi
 echo ""

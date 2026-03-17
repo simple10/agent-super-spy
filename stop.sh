@@ -14,10 +14,21 @@ fi
 NETWORK_NAME="${NETWORK_NAME:-llm-proxy-net}"
 OPIK_DIR="$SCRIPT_DIR/opik"
 
+csv_has_value() {
+  local csv
+  csv=",$(echo "${1:-}" | tr -d '[:space:]'),"
+  [[ "$csv" == *",$2,"* ]]
+}
+
+OPIK_ENABLED=false
+if csv_has_value "$COMPOSE_PROFILES" "opik" || csv_has_value "${TRACE_EXPORTERS:-opik}" "opik"; then
+  OPIK_ENABLED=true
+fi
+
 echo "==> Stopping proxy stack..."
 docker compose -p "${COMPOSE_PROJECT_NAME:-llm-stack}" down
 
-if [[ -d "$OPIK_DIR/deployment/docker-compose" ]]; then
+if [[ "$OPIK_ENABLED" == true && -d "$OPIK_DIR/deployment/docker-compose" ]]; then
   echo "==> Stopping Opik..."
   docker compose \
     -p opik \

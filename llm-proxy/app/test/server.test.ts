@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { parseStreamForMetadata } from './server'
+import { parseStreamForMetadata } from '../server'
 
 describe('parseStreamForMetadata', () => {
   test('preserves full anthropic stream usage metadata', () => {

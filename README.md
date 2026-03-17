@@ -1,6 +1,6 @@
 # Agent Super Spy - LLM Observability Stack
 
-A local, all-in-one LLM observability stack that combines [Opik](https://github.com/comet-ml/opik) for trace/span logging, [mitmproxy](https://mitmproxy.org/) for raw HTTP traffic inspection, and a generic LLM proxy that works with any provider.
+A local, all-in-one LLM observability stack that combines [Opik](https://github.com/comet-ml/opik), [Phoenix](https://github.com/Arize-ai/phoenix), and [mitmproxy](https://mitmproxy.org/) around a generic LLM proxy that works with any provider.
 
 Point your agents, SDKs, or tools at the LLM proxy and get full visibility into every API call.
 
@@ -10,12 +10,13 @@ Provider API keys can be optionally configured at the `llm-proxy` level.
 
 **Default stack (always running):**
 
-- **llm-proxy** — Generic LLM API reverse proxy with path-based routing, API key management, and automatic Opik trace logging
+- **llm-proxy** — Generic LLM API reverse proxy with path-based routing, API key management, and configurable OTEL trace export
 - **mitmproxy** — Transparent HTTPS proxy with web UI for raw traffic inspection
 - **Opik** — Trace/span visualization and analysis UI
 
 **Optional (via profiles):**
 
+- **phoenix** — Phoenix UI and OTEL collector (`phoenix` profile)
 - **claude-sdk-chat** — Claude Agent SDK chat UI (`claude-chat` profile)
 - **claude-sdk-proxy** — Anthropic API proxy with caching (`claude-proxy` profile)
 - **claude-code** — Claude Code CLI container (`claude-code` profile)
@@ -75,7 +76,7 @@ passthrough proxy for local development. Point your HTTP client at the proxy:
 export HTTP_PROXY=http://localhost:8080
 export HTTPS_PROXY=http://localhost:8080
 
-# Or route only LLM calls through the llm-proxy (logs to Opik automatically)
+# Or route only LLM calls through the llm-proxy (exports traces via OTEL)
 export ANTHROPIC_BASE_URL=http://localhost:4000/anthropic
 export OPENAI_BASE_URL=http://localhost:4000/openai
 ```
@@ -84,9 +85,9 @@ For HTTPS inspection, install the mitmproxy CA certificate (auto-generated on fi
 so your client trusts the intercepted connections. See the
 [mitmproxy docs](https://docs.mitmproxy.org/stable/concepts-certificates/) for details.
 
-For LLM logging, the `llm-proxy` transparently logs traces to Opik and also sends traffic
-through the mitmproxy. Opik lets you see nicely organized traces. Mitmproxy lets you see
-the exact headers and request payloads.
+For LLM logging, the `llm-proxy` transparently exports traces to the configured OTEL targets
+and also sends traffic through the mitmproxy. Opik or Phoenix lets you inspect traces.
+Mitmproxy lets you see the exact headers and request payloads.
 
 The optional claude services (containers) act as reference implementations for how to run
 agents in Docker containers and auto capture all outbound traffic.
@@ -95,7 +96,7 @@ agents in Docker containers and auto capture all outbound traffic.
 
 1. Start the stack
 2. Configure your agents (local or in other containers) to use the llm-proxy as the base URL
-3. View traces in Opik and raw traffic in mitmproxy web UIs
+3. View traces in Opik or Phoenix and raw traffic in mitmproxy web UI
 
 ## LLM Proxy Routing
 
@@ -167,10 +168,14 @@ From the shared network, these hostnames are available:
 | `COMPOSE_PROJECT_NAME` | `llm-stack` | Docker compose project name |
 | `NETWORK_NAME` | `llm-proxy-net` | Shared Docker network name |
 | `LLM_PROXY_PORT` | `4000` | LLM proxy host port |
+| `TRACE_EXPORTERS` | `opik` | Comma-delimited trace exporters: `opik`, `phoenix` |
+| `OPIK_OTEL_ENDPOINT` | `http://opik-frontend:5173/api/v1/private/otel/v1/traces` | Opik OTLP traces endpoint |
 | `OPIK_PROJECT_NAME` | `llm-proxy` | Opik project name for traces |
+| `PHOENIX_COLLECTOR_ENDPOINT` | `http://phoenix:6006` | Phoenix collector base URL |
+| `PHOENIX_PROJECT_NAME` | `llm-proxy` | Phoenix project name for traces |
 | `MITMPROXY_UI_PORT` | `8081` | mitmproxy web UI host port |
 | `MITMPROXY_WEB_PASSWORD` | `mitmpass` | mitmproxy web UI password |
-| `COMPOSE_PROFILES` | — | Optional services: `chat`, `api`, `cli` |
+| `COMPOSE_PROFILES` | — | Optional services: `phoenix`, `claude-chat`, `claude-proxy`, `claude-code` |
 | `ANTHROPIC_API_KEY` | — | For optional Claude services |
 
 ## Stopping
