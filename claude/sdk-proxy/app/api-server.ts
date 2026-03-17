@@ -1,10 +1,14 @@
 import { readFileSync } from 'fs'
-import { applyCacheControlMax, CACHE_5M, type CacheHints } from './cache-control'
-import { transformInput } from './cache-plugin'
-import { loadedInputPluginSpecs } from './plugins/transform/input'
+import { transformInput, loadedInputPluginSpecs } from './plugins/transform/transform'
 
 const API_PORT = parseInt(process.env.API_PORT || '4100')
-const ANTHROPIC_BASE = process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com'
+const DEFAULT_ANTHROPIC_BASE = 'https://api.anthropic.com'
+const ANTHROPIC_BASE = (
+  process.env.CLAUDE_PROXY_ANTHROPIC_BASE_URL ||
+  process.env.ANTHROPIC_BASE_URL ||
+  DEFAULT_ANTHROPIC_BASE
+).replace(/\/+$/, '')
+const ANTHROPIC_BASE_HOST = new URL(ANTHROPIC_BASE).host
 
 // Load the captured API template
 const template = JSON.parse(readFileSync('/data/api.json', 'utf-8'))
@@ -44,7 +48,6 @@ function buildForwardingHeaders(bodyLength: number): Record<string, string> {
       h[key] = value as string
     }
   }
-  h['host'] = 'api.anthropic.com'
   h['content-length'] = String(bodyLength)
   return h
 }
@@ -155,33 +158,18 @@ const server = Bun.serve({
     if (effectivePath === '/v1/messages' && req.method === 'POST') {
       const callerBody = (await req.json()) as Record<string, unknown>
       let merged = mergeMessagesBody(callerBody)
-      let cacheHints: CacheHints | undefined
-      let disableCaching = false
-      const cacheType = cacheControlMax ? 'max' : cacheControlAuto ? 'auto' : null
+      const cacheType = cacheControlMax ? 'max' : cacheControlAuto ? 'auto' : undefined
 
-      if (cacheType) {
+      if (cacheType !== undefined) {
         const transformed = await transformInput(merged, { cacheType })
         merged = transformed.input
-        cacheHints = transformed.cacheHints
-        disableCaching = transformed.disableCaching === true
-        if (cacheHints) {
-          console.log(`[api] Applied input transform cache hints: ${JSON.stringify(cacheHints)}`)
+        if (transformed.cacheHints) {
+          console.log(
+            `[api] Applied input transform cache hints: ${JSON.stringify(transformed.cacheHints)}`
+          )
         }
-        if (disableCaching) {
+        if (transformed.disableCaching === true) {
           console.log('[api] Input transform disabled caching for this request')
-        }
-      }
-
-      if (cacheControlMax && !disableCaching) {
-        const applied = applyCacheControlMax(merged, cacheHints)
-        merged = applied.body
-        if (applied.changes.length > 0) {
-          console.log(`[api] Added cache_control breakpoints: ${applied.changes.join(', ')}`)
-        }
-      } else if (cacheControlAuto && !disableCaching) {
-        if (!merged.cache_control) {
-          merged.cache_control = CACHE_5M
-          console.log('[api] Added top-level cache_control (auto)')
         }
       }
       const bodyStr = JSON.stringify(merged)
@@ -259,3 +247,4 @@ console.log(
     loadedInputPluginSpecs.length > 0 ? loadedInputPluginSpecs.join(', ') : 'none'
   }`
 )
+console.log('[api-server] Route-enabled input transform plugins: cache-control')

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { applyCacheControlMax } from './cache-control'
+import { applyCacheControlMax } from '../../../../app/plugins/transform/cache-control/lib'
 
 describe('applyCacheControlMax', () => {
   test('uses hinted system and message breakpoints when provided', () => {

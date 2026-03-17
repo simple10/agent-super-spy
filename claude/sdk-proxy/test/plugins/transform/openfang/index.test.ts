@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { transformInput } from './openfang'
+import { transformInput } from '../../../../app/plugins/transform/openfang'
 
 describe('openfang transformInput', () => {
   test('disables caching entirely for openfang prompts on max routes', async () => {

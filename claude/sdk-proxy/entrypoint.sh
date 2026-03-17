@@ -51,17 +51,18 @@ bun install
 # --- Step 1: Capture SDK request template ---
 echo "==> Running SDK capture..."
 
+rm -f /data/api.json
 export ANTHROPIC_BASE_URL="http://localhost:9999"
 
-bun run intercept-server.ts &
+bun run ./capture/intercept-server.ts &
 INTERCEPT_PID=$!
 sleep 1
 
-bun run capture.ts || true
+bun run ./capture/capture.ts || true
 sleep 1
 
 kill $INTERCEPT_PID 2>/dev/null || true
-export ANTHROPIC_BASE_URL=${CLAUDE_PROXY_ANTHROPIC_BASE_URL}
+unset ANTHROPIC_BASE_URL
 
 if [ -f /data/api.json ]; then
   echo "==> Captured API request template."
@@ -72,4 +73,4 @@ fi
 
 # --- Step 2: Start API proxy server ---
 echo "==> Starting API server..."
-exec bun run api-server.ts
+exec bun run ./api-server.ts

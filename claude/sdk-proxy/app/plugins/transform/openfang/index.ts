@@ -1,4 +1,4 @@
-import type { TransformContext, TransformResult } from '../input'
+import type { TransformContext, TransformResult } from '../transform'
 
 const OPENFANG_SYSTEM_MARKER = 'You are a helpful AI assistant.\n\n## Current Date'
 
