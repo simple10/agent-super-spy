@@ -168,11 +168,10 @@ From the shared network, these hostnames are available:
 | `COMPOSE_PROJECT_NAME` | `llm-stack` | Docker compose project name |
 | `NETWORK_NAME` | `llm-proxy-net` | Shared Docker network name |
 | `LLM_PROXY_PORT` | `4000` | LLM proxy host port |
-| `TRACE_EXPORTERS` | `opik` | Comma-delimited trace exporters: `opik`, `phoenix` |
+| `TRACE_EXPORTERS` | `phoenix` | Comma-delimited trace exporters: `opik`, `phoenix` |
 | `OPIK_OTEL_ENDPOINT` | `http://opik-frontend:5173/api/v1/private/otel/v1/traces` | Opik OTLP traces endpoint |
-| `OPIK_PROJECT_NAME` | `llm-proxy` | Opik project name for traces |
+| `OTEL_PROJECT_NAME` | `llm-proxy` | Shared project name for Opik and Phoenix traces |
 | `PHOENIX_COLLECTOR_ENDPOINT` | `http://phoenix:6006` | Phoenix collector base URL |
-| `PHOENIX_PROJECT_NAME` | `llm-proxy` | Phoenix project name for traces |
 | `MITMPROXY_UI_PORT` | `8081` | mitmproxy web UI host port |
 | `MITMPROXY_WEB_PASSWORD` | `mitmpass` | mitmproxy web UI password |
 | `COMPOSE_PROFILES` | — | Optional services: `phoenix`, `claude-chat`, `claude-proxy`, `claude-code` |

@@ -10,9 +10,9 @@ echo ""
 
 # ── Defaults ──
 NETWORK_NAME="llm-proxy-net"
-COMPOSE_PROJECT_NAME="llm-stack"
-OPIK_PROJECT_NAME="llm-proxy"
-TRACE_EXPORTERS="opik"
+COMPOSE_PROJECT_NAME="agent-super-spy"
+OTEL_PROJECT_NAME="llm-proxy"
+TRACE_EXPORTERS="phoenix"
 LLM_PROXY_PORT="4000"
 MITMPROXY_UI_PORT="8081"
 MITMPROXY_WEB_PASSWORD="mitmpass"
@@ -25,11 +25,24 @@ read -rp "Compose project name [$COMPOSE_PROJECT_NAME]: " input
 COMPOSE_PROJECT_NAME="${input:-$COMPOSE_PROJECT_NAME}"
 
 # ── LLM Proxy ──
-read -rp "Opik project name for traces [$OPIK_PROJECT_NAME]: " input
-OPIK_PROJECT_NAME="${input:-$OPIK_PROJECT_NAME}"
+echo ""
+echo "Select OTEL backend:"
+echo "  1. Phoenix"
+echo "  2. Opik"
+echo "  3. Both"
+read -rp "Choice [1]: " input
+case "${input:-1}" in
+  1) TRACE_EXPORTERS="phoenix" ;;
+  2) TRACE_EXPORTERS="opik" ;;
+  3) TRACE_EXPORTERS="phoenix,opik" ;;
+  *)
+    echo "Invalid choice: ${input}. Expected 1, 2, or 3."
+    exit 1
+    ;;
+esac
 
-read -rp "Trace exporters (comma-separated: opik,phoenix) [$TRACE_EXPORTERS]: " input
-TRACE_EXPORTERS="${input:-$TRACE_EXPORTERS}"
+read -rp "OTEL project name [$OTEL_PROJECT_NAME]: " input
+OTEL_PROJECT_NAME="${input:-$OTEL_PROJECT_NAME}"
 
 read -rp "LLM proxy port [$LLM_PROXY_PORT]: " input
 LLM_PROXY_PORT="${input:-$LLM_PROXY_PORT}"
@@ -41,13 +54,14 @@ MITMPROXY_UI_PORT="${input:-$MITMPROXY_UI_PORT}"
 read -rp "mitmproxy web password [$MITMPROXY_WEB_PASSWORD]: " input
 MITMPROXY_WEB_PASSWORD="${input:-$MITMPROXY_WEB_PASSWORD}"
 
-# ── Optional services ──
+# ── Optional Claude services ──
 echo ""
-echo "Optional services (these are in addition to the default mitmproxy + llm-proxy + opik stack):"
+echo "Optional Claude services:"
 PROFILES=""
 
-read -rp "  Enable Phoenix? [y/N]: " input
-[[ "$input" == [yY] ]] && PROFILES="${PROFILES:+$PROFILES,}phoenix"
+if [[ "$TRACE_EXPORTERS" == *"phoenix"* ]]; then
+  PROFILES="phoenix"
+fi
 
 read -rp "  Enable Claude chat UI? [y/N]: " input
 [[ "$input" == [yY] ]] && PROFILES="${PROFILES:+$PROFILES,}claude-chat"
@@ -60,7 +74,7 @@ read -rp "  Enable Claude Code CLI? [y/N]: " input
 
 # ── API Keys (for optional Claude services) ──
 ANTHROPIC_API_KEY=""
-if [[ -n "$PROFILES" ]]; then
+if [[ ",${PROFILES}," == *",claude-chat,"* || ",${PROFILES}," == *",claude-proxy,"* || ",${PROFILES}," == *",claude-code,"* ]]; then
   echo ""
   echo "Claude services need an Anthropic API key (or place credentials.json in data/claude/):"
   read -rp "  Anthropic API key (Enter to skip): " ANTHROPIC_API_KEY
@@ -96,11 +110,14 @@ fi
   echo "# LLM Proxy"
   echo "LLM_PROXY_PORT=${LLM_PROXY_PORT}"
   echo "TRACE_EXPORTERS=${TRACE_EXPORTERS}"
-  echo "OPIK_PROJECT_NAME=${OPIK_PROJECT_NAME}"
+  echo "OTEL_PROJECT_NAME=${OTEL_PROJECT_NAME}"
   echo "# OPIK_OTEL_ENDPOINT=http://opik-frontend:5173/api/v1/private/otel/v1/traces"
+  echo "# OPIK_API_KEY="
+  echo "# OPIK_WORKSPACE="
+  echo "# OPIK_OTEL_HEADERS="
   echo "# PHOENIX_COLLECTOR_ENDPOINT=http://phoenix:6006"
-  echo "# PHOENIX_PROJECT_NAME=llm-proxy"
   echo "# PHOENIX_API_KEY="
+  echo "# PHOENIX_OTEL_HEADERS="
   echo ""
   echo "# mitmproxy"
   echo "MITMPROXY_UI_PORT=${MITMPROXY_UI_PORT}"
@@ -164,7 +181,12 @@ echo ""
 echo "URLs (after starting):"
 echo "  LLM Proxy:    http://localhost:${LLM_PROXY_PORT}"
 echo "  mitmproxy UI: http://localhost:${MITMPROXY_UI_PORT}/?token=${MITMPROXY_WEB_PASSWORD}"
-echo "  Opik UI:      http://localhost:5173"
+if [[ "$TRACE_EXPORTERS" == *"opik"* ]]; then
+  echo "  Opik UI:      http://localhost:5173"
+fi
+if [[ "$TRACE_EXPORTERS" == *"phoenix"* ]]; then
+  echo "  Phoenix UI:   http://localhost:6006"
+fi
 echo ""
 echo "Configure your SDKs:"
 echo "  ANTHROPIC_BASE_URL=http://localhost:${LLM_PROXY_PORT}/anthropic"

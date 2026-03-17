@@ -49,14 +49,14 @@ services:
       - NET_ADMIN
     environment:
       - LLM_PROXY_PORT=4000
-      - TRACE_EXPORTERS=${TRACE_EXPORTERS:-opik}
+      - TRACE_EXPORTERS=${TRACE_EXPORTERS:-phoenix}
       - OPIK_OTEL_ENDPOINT=${OPIK_OTEL_ENDPOINT:-http://opik-frontend:5173/api/v1/private/otel/v1/traces}
-      - OPIK_PROJECT_NAME=${OPIK_PROJECT_NAME:-llm-proxy}
+      - OPIK_PROJECT_NAME=${OTEL_PROJECT_NAME:-llm-proxy}
       - OPIK_API_KEY=${OPIK_API_KEY:-}
       - OPIK_WORKSPACE=${OPIK_WORKSPACE:-}
       - OPIK_OTEL_HEADERS=${OPIK_OTEL_HEADERS:-}
       - PHOENIX_COLLECTOR_ENDPOINT=${PHOENIX_COLLECTOR_ENDPOINT:-http://phoenix:6006}
-      - PHOENIX_PROJECT_NAME=${PHOENIX_PROJECT_NAME:-llm-proxy}
+      - PHOENIX_PROJECT_NAME=${OTEL_PROJECT_NAME:-llm-proxy}
       - PHOENIX_API_KEY=${PHOENIX_API_KEY:-}
       - PHOENIX_OTEL_HEADERS=${PHOENIX_OTEL_HEADERS:-}
       - KEYS_PATH=/app/keys.jsonc
