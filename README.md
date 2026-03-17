@@ -12,11 +12,11 @@ Provider API keys can be optionally configured at the `llm-proxy` level.
 
 - **llm-proxy** — Generic LLM API reverse proxy with path-based routing, API key management, and configurable OTEL trace export
 - **mitmproxy** — Transparent HTTPS proxy with web UI for raw traffic inspection
-- **Opik** — Trace/span visualization and analysis UI
 
-**Optional (via profiles):**
+**Optional:**
 
 - **phoenix** — Phoenix UI and OTEL collector (`phoenix` profile)
+- **Opik** — Trace/span visualization and analysis UI
 - **claude-sdk-chat** — Claude Agent SDK chat UI (`claude-chat` profile)
 - **claude-sdk-proxy** — Anthropic API proxy with caching (`claude-proxy` profile)
 - **claude-code** — Claude Code CLI container (`claude-code` profile)
@@ -56,8 +56,8 @@ Your agents / SDKs / tools
 |         | traces                                                      |
 |         v                                                             |
 |  +---------------------------------------------+                      |
-|  |  Opik                                       |                      |
-|  |  :5173 UI  - trace/span visualization       |                      |
+|  |  Phoenix / Opik                             |                      |
+|  |  - trace/span visualization                 |                      |
 |  +---------------------------------------------+                      |
 +-----------------------------------------------------------------------+
 ```
@@ -154,12 +154,13 @@ services:
       ANTHROPIC_BASE_URL: http://llm-proxy:4000/anthropic
 ```
 
-From the shared network, these hostnames are available:
+From the shared network, these host names are available:
 
 - `llm-proxy:4000` — LLM proxy
 - `mitmproxy-ui:8081` — mitmproxy web UI
-- `opik-backend:8080` — Opik API
-- `opik-frontend:5173` — Opik UI
+- `phoenix:6006` - Phoenix OTEL collector (if Phoenix enabled)
+- `opik-backend:8080` — Opik API (if Opik enabled)
+- `opik-frontend:5173` — Opik UI (if Opik enabled)
 
 ## Configuration
 
