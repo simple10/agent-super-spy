@@ -2,8 +2,15 @@
 .env
 node_modules/
 bun.lock
-opik/
+
+# LLM Proxy keys
 keys.jsonc
+
+# Bind mount data dirs
 data/claude/credentials.json
 data/claude/sdk-proxy/*
 !data/claude/sdk-proxy/.gitkeep
+
+# LLMetry backends
+opik/
+phoenix/
