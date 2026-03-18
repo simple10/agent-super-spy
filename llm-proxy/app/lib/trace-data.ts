@@ -50,6 +50,11 @@ function joinTextParts(parts: string[]): string | undefined {
   return text || undefined
 }
 
+type MessageAttribute = {
+  'message.role': string
+  'message.content'?: string
+}
+
 function extractLastUserMessage(messages: unknown[]): string | undefined {
   const userMessages: string[] = []
 
@@ -80,6 +85,66 @@ function extractLastAssistantMessage(messages: unknown[]): string | undefined {
   }
 
   return assistantMessages.at(-1)
+}
+
+function buildSystemMessageAttributes(system: unknown): MessageAttribute[] {
+  if (typeof system === 'string') {
+    return system.trim() ? [{ 'message.role': 'system', 'message.content': system }] : []
+  }
+
+  if (!Array.isArray(system)) return []
+
+  const content = joinTextParts(extractTextParts(system))
+  return content ? [{ 'message.role': 'system', 'message.content': content }] : []
+}
+
+function buildMessageAttributes(messages: unknown[]): MessageAttribute[] {
+  const attributes: MessageAttribute[] = []
+
+  for (const message of messages) {
+    if (!isRecord(message)) continue
+
+    const role = message.role ?? message.type
+    if (typeof role !== 'string' || !role.trim()) continue
+
+    const content = joinTextParts(extractTextParts(message.content))
+    attributes.push({
+      'message.role': role,
+      ...(content ? { 'message.content': content } : {}),
+    })
+  }
+
+  return attributes
+}
+
+export function buildInputMessageAttributes(input: any): Record<string, string> {
+  if (!isRecord(input)) return {}
+
+  const messages = [
+    ...buildSystemMessageAttributes(input.system),
+    ...(Array.isArray(input.messages) ? buildMessageAttributes(input.messages) : []),
+  ]
+
+  const attributes: Record<string, string> = {}
+  for (const [index, message] of messages.entries()) {
+    for (const [key, value] of Object.entries(message)) {
+      if (typeof value === 'string' && value.trim()) {
+        attributes[`llm.input_messages.${index}.${key}`] = value
+      }
+    }
+  }
+  return attributes
+}
+
+export function buildToolAttributes(input: any): Record<string, string> {
+  if (!isRecord(input) || !Array.isArray(input.tools)) return {}
+
+  const attributes: Record<string, string> = {}
+  for (const [index, tool] of input.tools.entries()) {
+    if (!isRecord(tool)) continue
+    attributes[`llm.tools.${index}.tool.json_schema`] = JSON.stringify(tool)
+  }
+  return attributes
 }
 
 export function summarizeTraceInput(input: any): string | undefined {

@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import {
+  buildInputMessageAttributes,
   buildLoggedInput,
   buildLoggedOutput,
+  buildToolAttributes,
   extractModelAndUsage,
   generateUuidV7,
   summarizeTraceInput,
@@ -89,6 +91,46 @@ describe('buildLoggedInput', () => {
         system: 'You are a terse assistant.',
         messages: [{ role: 'user', content: 'Ping' }],
       },
+    })
+  })
+})
+
+describe('buildInputMessageAttributes', () => {
+  test('includes anthropic system prompts and messages using OpenInference keys', () => {
+    expect(
+      buildInputMessageAttributes({
+        system: [{ type: 'text', text: 'You are a terse assistant.' }],
+        messages: [
+          { role: 'user', content: 'Ping' },
+          { role: 'assistant', content: [{ type: 'text', text: 'Pong' }] },
+        ],
+      }),
+    ).toEqual({
+      'llm.input_messages.0.message.role': 'system',
+      'llm.input_messages.0.message.content': 'You are a terse assistant.',
+      'llm.input_messages.1.message.role': 'user',
+      'llm.input_messages.1.message.content': 'Ping',
+      'llm.input_messages.2.message.role': 'assistant',
+      'llm.input_messages.2.message.content': 'Pong',
+    })
+  })
+})
+
+describe('buildToolAttributes', () => {
+  test('serializes tool definitions using OpenInference keys', () => {
+    expect(
+      buildToolAttributes({
+        tools: [
+          {
+            name: 'get_weather',
+            description: 'Fetch the weather',
+            input_schema: { type: 'object', properties: { city: { type: 'string' } } },
+          },
+        ],
+      }),
+    ).toEqual({
+      'llm.tools.0.tool.json_schema':
+        '{"name":"get_weather","description":"Fetch the weather","input_schema":{"type":"object","properties":{"city":{"type":"string"}}}}',
     })
   })
 })

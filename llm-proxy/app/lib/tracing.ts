@@ -2,7 +2,16 @@ import { SpanKind, SpanStatusCode } from '@opentelemetry/api'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto'
 import { resourceFromAttributes } from '@opentelemetry/resources'
 import { BasicTracerProvider, BatchSpanProcessor } from '@opentelemetry/sdk-trace-base'
-import { buildLoggedInput, buildLoggedOutput, extractModelAndUsage, summarizeTraceInput, summarizeTraceOutput, type TraceData } from './trace-data'
+import {
+  buildInputMessageAttributes,
+  buildLoggedInput,
+  buildLoggedOutput,
+  buildToolAttributes,
+  extractModelAndUsage,
+  summarizeTraceInput,
+  summarizeTraceOutput,
+  type TraceData,
+} from './trace-data'
 
 const SERVICE_NAME = 'llm-proxy'
 const SERVICE_VERSION = '1.0.0'
@@ -139,7 +148,10 @@ export function buildTracingConfig(env = process.env): TracingConfig {
   }
 }
 
-export function buildSpanAttributes(data: TraceData): Record<string, string | number | boolean> {
+export function buildSpanAttributes(
+  data: TraceData,
+  exporter?: TraceExporter,
+): Record<string, string | number | boolean> {
   const { model, usage } = extractModelAndUsage(data.provider, data.requestBody, data.responseBody)
   const inputSummary = summarizeTraceInput(data.requestBody)
   const outputSummary = summarizeTraceOutput(data.responseBody)
@@ -160,6 +172,8 @@ export function buildSpanAttributes(data: TraceData): Record<string, string | nu
       ? { 'llm.token_count.completion': usage.completion_tokens }
       : {}),
     ...(usage.total_tokens !== undefined ? { 'llm.token_count.total': usage.total_tokens } : {}),
+    ...(exporter === 'phoenix' ? buildInputMessageAttributes(data.requestBody) : {}),
+    ...(exporter === 'phoenix' ? buildToolAttributes(data.requestBody) : {}),
     ...(requestJson ? { 'llm-proxy.request': requestJson } : {}),
     ...(responseJson ? { 'llm-proxy.response': responseJson } : {}),
   }
@@ -233,7 +247,7 @@ export async function logTrace(data: TraceData): Promise<void> {
     const span = pipeline.tracer.startSpan(`${data.method} ${data.path}`, {
       kind: SpanKind.SERVER,
       startTime: data.startTime,
-      attributes: buildSpanAttributes(data),
+      attributes: buildSpanAttributes(data, pipeline.exporter),
     })
 
     if (data.error) {

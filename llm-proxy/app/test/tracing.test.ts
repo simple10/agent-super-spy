@@ -53,31 +53,52 @@ describe('buildTracingConfig', () => {
 })
 
 describe('buildSpanAttributes', () => {
-  test('maps proxy trace data to llm-friendly attributes', () => {
-    const data: TraceData = {
-      provider: 'anthropic',
-      method: 'POST',
-      path: '/v1/messages',
-      requestBody: {
-        model: 'claude-test',
-        messages: [{ role: 'user', content: 'Ping' }],
-      },
-      responseBody: {
-        model: 'claude-test',
-        usage: { input_tokens: 10, output_tokens: 5 },
-        content: [{ type: 'text', text: 'Pong' }],
-      },
-      statusCode: 200,
-      startTime: new Date('2026-03-17T18:00:00.000Z'),
-      endTime: new Date('2026-03-17T18:00:01.000Z'),
-    }
+  const data: TraceData = {
+    provider: 'anthropic',
+    method: 'POST',
+    path: '/v1/messages',
+    requestBody: {
+      model: 'claude-test',
+      system: 'You are a terse assistant.',
+      tools: [{ name: 'get_weather', input_schema: { type: 'object' } }],
+      messages: [{ role: 'user', content: 'Ping' }],
+    },
+    responseBody: {
+      model: 'claude-test',
+      usage: { input_tokens: 10, output_tokens: 5 },
+      content: [{ type: 'text', text: 'Pong' }],
+    },
+    statusCode: 200,
+    startTime: new Date('2026-03-17T18:00:00.000Z'),
+    endTime: new Date('2026-03-17T18:00:01.000Z'),
+  }
 
-    expect(buildSpanAttributes(data)).toMatchObject({
+  test('maps proxy trace data to llm-friendly attributes for opik', () => {
+    expect(buildSpanAttributes(data, 'opik')).toMatchObject({
       'openinference.span.kind': 'LLM',
       'input.value': 'Ping',
       'output.value': 'Pong',
       'llm.model_name': 'claude-test',
       'llm.provider': 'anthropic',
+      'llm.token_count.total': 15,
+      'http.response.status_code': 200,
+    })
+    expect(buildSpanAttributes(data, 'opik')).not.toHaveProperty('llm.input_messages.0.message.role')
+    expect(buildSpanAttributes(data, 'opik')).not.toHaveProperty('llm.tools.0.tool.json_schema')
+  })
+
+  test('adds structured input messages and tools for phoenix', () => {
+    expect(buildSpanAttributes(data, 'phoenix')).toMatchObject({
+      'openinference.span.kind': 'LLM',
+      'input.value': 'Ping',
+      'output.value': 'Pong',
+      'llm.model_name': 'claude-test',
+      'llm.provider': 'anthropic',
+      'llm.input_messages.0.message.role': 'system',
+      'llm.input_messages.0.message.content': 'You are a terse assistant.',
+      'llm.input_messages.1.message.role': 'user',
+      'llm.input_messages.1.message.content': 'Ping',
+      'llm.tools.0.tool.json_schema': '{"name":"get_weather","input_schema":{"type":"object"}}',
       'llm.token_count.total': 15,
       'http.response.status_code': 200,
     })
