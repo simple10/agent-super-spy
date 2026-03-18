@@ -146,6 +146,7 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - API_SERVER_KEY=${CLAUDE_PROXY_API_KEY:-}
       - API_PORT=4100
+      - LOG_LEVEL=${CLAUDE_PROXY_LOG_LEVEL:-debug}
       # Input transformers for modifying prompts - useful for fixing cache control issues
       - PLUGINS_TRANSFORM=${CLAUDE_PROXY_PLUGINS_TRANSFORM:-}
       # Route claude proxy through the llm-proxy by default to capture traces

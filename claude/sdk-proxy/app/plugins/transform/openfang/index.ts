@@ -1,3 +1,4 @@
+import { info } from '../../../logging'
 import type { TransformContext, TransformResult } from '../transform'
 
 const OPENFANG_SYSTEM_MARKER = 'You are a helpful AI assistant.\n\n## Current Date'
@@ -82,7 +83,7 @@ export async function transformInput(
     //   nextSystem.push({ type: 'text', text: split.dateText })
     // }
 
-    console.log(
+    info(
       '[api] openfang transform: detected unstable upstream system prompt; disabling caching for this request',
     )
 

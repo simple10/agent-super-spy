@@ -1,4 +1,5 @@
 import { readFileSync } from 'fs'
+import { debug, getLogLevel, info } from './logging'
 import { transformInput, loadedInputPluginSpecs } from './plugins/transform/transform'
 
 const API_PORT = parseInt(process.env.API_PORT || '4100')
@@ -97,7 +98,7 @@ function fixToolResultOrder(messages: any[]): any[] {
     const others = msg.content.filter((b: any) => b.type !== 'tool_result')
     const firstType = msg.content[0]?.type
     if (firstType !== 'tool_result') {
-      console.log(
+      info(
         `[api] Fixed tool_result order in messages[${i}] (moved ${toolResults.length} tool_result(s) before ${others.length} other block(s))`
       )
     }
@@ -131,6 +132,22 @@ function mergeMessagesBody(callerBody: Record<string, unknown>): Record<string, 
   return merged
 }
 
+function describeModel(value: unknown): string {
+  return typeof value === 'string' && value.trim() ? value : 'unknown'
+}
+
+function describeUserAgent(req: Request): string {
+  const userAgent = req.headers.get('user-agent')
+  return userAgent && userAgent.trim() ? userAgent : 'unknown'
+}
+
+function formatHeaders(req: Request): string {
+  return [...req.headers.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, value]) => `    ${key}: ${value}`)
+    .join('\n')
+}
+
 const server = Bun.serve({
   port: API_PORT,
   async fetch(req) {
@@ -146,10 +163,6 @@ const server = Bun.serve({
       : ''
     const effectivePath = cachePrefix ? url.pathname.slice(cachePrefix.length) : url.pathname
 
-    console.log(
-      `[api] ${req.method} ${url.pathname}${cachePrefix ? ` (${cachePrefix.slice(1)})` : ''}`
-    )
-
     // Validate caller's API key
     const authErr = validateApiKey(req)
     if (authErr) return authErr
@@ -157,6 +170,12 @@ const server = Bun.serve({
     // POST /v1/messages — merge with template and forward
     if (effectivePath === '/v1/messages' && req.method === 'POST') {
       const callerBody = (await req.json()) as Record<string, unknown>
+      const model = describeModel(callerBody.model)
+      const userAgent = describeUserAgent(req)
+      info(`[api] ${req.method} ${url.pathname} model=${model} user-agent=${userAgent}`)
+      debug(
+        `[api] ${req.method} ${url.toString()} model=${model}\n  Headers:\n${formatHeaders(req)}`
+      )
       let merged = mergeMessagesBody(callerBody)
       const cacheType = cacheControlMax ? 'max' : cacheControlAuto ? 'auto' : undefined
 
@@ -164,12 +183,12 @@ const server = Bun.serve({
         const transformed = await transformInput(merged, { cacheType })
         merged = transformed.input
         if (transformed.cacheHints) {
-          console.log(
+          info(
             `[api] Applied input transform cache hints: ${JSON.stringify(transformed.cacheHints)}`
           )
         }
         if (transformed.disableCaching === true) {
-          console.log('[api] Input transform disabled caching for this request')
+          info('[api] Input transform disabled caching for this request')
         }
       }
       const bodyStr = JSON.stringify(merged)
@@ -235,16 +254,19 @@ const server = Bun.serve({
   },
 })
 
-console.log(`[api-server] Listening on http://localhost:${API_PORT}`)
-console.log(
+info(
+  `[api-server] Log level: ${getLogLevel()}`
+)
+info(`[api-server] Listening on http://localhost:${API_PORT}`)
+info(
   `[api-server] Auth validation: ${serverKey ? 'enabled' : 'disabled (no API_SERVER_KEY)'}`
 )
-console.log(`[api-server] Forwarding to: ${ANTHROPIC_BASE}`)
-console.log(`[api-server] Template auth header: ${authHeaderName}`)
-console.log(`[api-server] Template query params: ${JSON.stringify(templateQueryParams)}`)
-console.log(
+info(`[api-server] Forwarding to: ${ANTHROPIC_BASE}`)
+debug(`[api-server] Template auth header: ${authHeaderName}`)
+debug(`[api-server] Template query params: ${JSON.stringify(templateQueryParams)}`)
+info(
   `[api-server] Input transform plugins: ${
     loadedInputPluginSpecs.length > 0 ? loadedInputPluginSpecs.join(', ') : 'none'
   }`
 )
-console.log('[api-server] Route-enabled input transform plugins: cache-control')
+info('[api-server] Route-enabled input transform plugins: cache-control')
