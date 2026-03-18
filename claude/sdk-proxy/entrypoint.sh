@@ -51,7 +51,10 @@ bun install
 # --- Step 1: Capture SDK request template ---
 echo "==> Running SDK capture..."
 
-rm -f /data/api.json
+rm -f /data/api.bak.json
+if [ -f /data/api.json ]; then
+  mv /data/api.json /data/api.bak.json
+fi
 export ANTHROPIC_BASE_URL="http://localhost:9999"
 
 bun run ./capture/intercept-server.ts &

@@ -1,11 +1,91 @@
-import { writeFileSync } from 'fs'
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'fs'
 
 const INTERCEPT_PORT = 9999
 const OUTPUT_PATH = '/data/api.json'
+const BACKUP_PATH = '/data/api.bak.json'
+
+type CapturedRequest = {
+  method: string
+  url: string
+  queryParams: Record<string, string>
+  headers: Record<string, string>
+  body: Record<string, unknown>
+}
 
 let captured = false
 
-const server = Bun.serve({
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item)).join(',')}]`
+  }
+
+  if (isRecord(value)) {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`)
+      .join(',')}}`
+  }
+
+  return JSON.stringify(value)
+}
+
+function formatDiffValue(value: unknown): string {
+  const rendered = stableStringify(value)
+  return rendered.length > 240 ? `${rendered.slice(0, 237)}...` : rendered
+}
+
+export function describeCaptureChanges(
+  previous: CapturedRequest,
+  current: CapturedRequest,
+): string[] {
+  const changes: string[] = []
+  const headerKeys = [...new Set([...Object.keys(previous.headers), ...Object.keys(current.headers)])].sort()
+
+  for (const key of headerKeys) {
+    const before = previous.headers[key]
+    const after = current.headers[key]
+    if (before === after) continue
+    changes.push(`headers.${key}: ${formatDiffValue(before)} -> ${formatDiffValue(after)}`)
+  }
+
+  const previousSystem = previous.body?.system
+  const currentSystem = current.body?.system
+  if (stableStringify(previousSystem) !== stableStringify(currentSystem)) {
+    changes.push(
+      `body.system: ${formatDiffValue(previousSystem)} -> ${formatDiffValue(currentSystem)}`
+    )
+  }
+
+  return changes
+}
+
+function compareCaptureWithBackup(current: CapturedRequest): void {
+  if (!existsSync(BACKUP_PATH)) return
+
+  try {
+    const previous = JSON.parse(readFileSync(BACKUP_PATH, 'utf-8')) as CapturedRequest
+    const changes = describeCaptureChanges(previous, current)
+
+    if (changes.length === 0) {
+      unlinkSync(BACKUP_PATH)
+      console.log(`[intercept] No header/system changes detected; removed ${BACKUP_PATH}`)
+      return
+    }
+
+    console.log(`[intercept] Detected api.json changes:`)
+    for (const change of changes) {
+      console.log(`  ${change}`)
+    }
+  } catch (err: any) {
+    console.log(`[intercept] Failed to compare ${OUTPUT_PATH} with ${BACKUP_PATH}: ${err.message}`)
+  }
+}
+
+export const app = {
   port: INTERCEPT_PORT,
   async fetch(req) {
     const url = new URL(req.url)
@@ -31,16 +111,17 @@ const server = Bun.serve({
         queryParams[key] = value
       })
 
-      const capturedRequest = {
+      const capturedRequest: CapturedRequest = {
         method: req.method,
         url: url.pathname,
         queryParams,
         headers,
-        body,
+        body: isRecord(body) ? body : {},
       }
 
       writeFileSync(OUTPUT_PATH, JSON.stringify(capturedRequest, null, 2))
       console.log(`[intercept] Captured request → ${OUTPUT_PATH}`)
+      compareCaptureWithBackup(capturedRequest)
       captured = true
 
       // Return a minimal streaming SSE response so the SDK exits cleanly
@@ -105,6 +186,9 @@ const server = Bun.serve({
       headers: { 'Content-Type': 'application/json' },
     })
   },
-})
+}
 
-console.log(`[intercept] Listening on http://localhost:${INTERCEPT_PORT}`)
+if (import.meta.main) {
+  Bun.serve(app)
+  console.log(`[intercept] Listening on http://localhost:${INTERCEPT_PORT}`)
+}
